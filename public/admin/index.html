@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexaBot Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#0a0a0a;color:#e8e8e8;min-height:100vh;font-size:14px}
+:root{
+  --gold:#C9A84C;--gold-lt:#E8C97A;--gold-dim:rgba(201,168,76,0.1);
+  --s1:#111;--s2:#181818;--s3:#1e1e1e;
+  --b1:#222;--b2:#2a2a2a;
+  --muted:#555;--dim:#888;
+  --danger:#e74c3c;--success:#2ecc71;
+  --th:52px;--c1:210px;--c2:200px;
+}
+
+/* TOPBAR */
+.topbar{background:var(--s1);border-bottom:1px solid var(--b1);padding:0 20px;height:var(--th);display:flex;align-items:center;justify-content:space-between;position:fixed;top:0;left:0;right:0;z-index:200}
+.logo{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700;color:var(--gold)}
+.logo span{color:#fff}
+.logo small{font-size:.65rem;color:var(--muted);margin-left:8px;font-family:'DM Sans',sans-serif;font-weight:400}
+.topbar-r{display:flex;align-items:center;gap:12px}
+.sys-ok{font-size:.72rem;color:var(--success);display:flex;align-items:center;gap:5px}
+.sys-ok::before{content:'';width:6px;height:6px;background:var(--success);border-radius:50%;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.btn-logout{background:transparent;border:1px solid var(--b2);color:var(--muted);padding:5px 12px;border-radius:5px;cursor:pointer;font-size:.72rem;font-family:'DM Sans',sans-serif;transition:all .2s}
+.btn-logout:hover{border-color:var(--danger);color:var(--danger)}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:var(--c1) var(--c2) 1fr;min-height:100vh;padding-top:var(--th)}
+
+/* COL 1 */
+.col1{background:var(--s1);border-right:1px solid var(--b1);display:flex;flex-direction:column;height:calc(100vh - var(--th));position:sticky;top:var(--th)}
+.col-hdr{padding:14px 14px 8px;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);flex-shrink:0}
+#clientList{flex:1;overflow-y:auto;list-style:none}
+#clientList::-webkit-scrollbar{width:2px}
+#clientList::-webkit-scrollbar-thumb{background:var(--b2)}
+.ci{padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:9px;border-left:2px solid transparent;transition:background .15s}
+.ci:hover{background:var(--s2)}
+.ci.active{background:var(--gold-dim);border-left-color:var(--gold)}
+.ci-emoji{font-size:1rem;flex-shrink:0}
+.ci-info{flex:1;min-width:0}
+.ci-name{font-weight:500;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#d0d0d0}
+.ci.active .ci-name{color:var(--gold)}
+.ci-sec{font-size:.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn-del{background:none;border:none;color:#333;cursor:pointer;font-size:.75rem;padding:3px 5px;border-radius:3px;flex-shrink:0;transition:color .15s}
+.btn-del:hover{color:var(--danger)}
+.col1-foot{padding:10px 12px;flex-shrink:0;border-top:1px solid var(--b1)}
+.btn-new{display:block;width:100%;background:var(--gold);color:#000;border:none;padding:9px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:700;font-family:'Syne',sans-serif;transition:background .2s}
+.btn-new:hover{background:var(--gold-lt)}
+
+/* COL 2 */
+.col2{background:var(--s2);border-right:1px solid var(--b1);height:calc(100vh - var(--th));position:sticky;top:var(--th);overflow-y:auto;padding:12px 0}
+.col2::-webkit-scrollbar{width:2px}
+.sec-grp{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:10px 14px 4px}
+.sec-grp:first-child{padding-top:0}
+.si{padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:9px;color:#555;border-left:2px solid transparent;transition:all .15s}
+.si:hover{background:var(--s3);color:#bbb}
+.si.active{background:rgba(201,168,76,.05);border-left-color:var(--gold);color:var(--gold)}
+.si-ico{font-size:.88rem;width:18px;text-align:center;flex-shrink:0}
+.si-lbl{font-size:.82rem}
+.sec-div{height:1px;background:var(--b1);margin:6px 12px}
+
+/* COL 3 */
+.col3{padding:24px;overflow-y:auto;max-height:calc(100vh - var(--th));background:#0d0d0d}
+.col3::-webkit-scrollbar{width:3px}
+.col3::-webkit-scrollbar-thumb{background:var(--b2)}
+
+/* CARDS */
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:10px;padding:20px;margin-bottom:16px}
+.card-title{font-family:'Syne',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
+.page-h{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;color:#e8e8e8;margin-bottom:4px}
+.page-sub{font-size:.82rem;color:var(--dim);margin-bottom:20px}
+
+/* FORMS */
+.fg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg.full{grid-column:1/-1}
+label{font-size:.72rem;color:var(--muted);letter-spacing:.03em}
+input,select,textarea{background:var(--s2);border:1px solid var(--b2);color:#e8e8e8;padding:9px 12px;border-radius:6px;font-size:.85rem;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+input::placeholder,textarea::placeholder{color:#333}
+textarea{resize:vertical;min-height:80px;line-height:1.6}
+select{cursor:pointer}
+select option{background:var(--s2)}
+
+/* HOURS */
+.hours-table{width:100%;border-collapse:collapse}
+.hours-table tr{border-bottom:1px solid var(--b1)}
+.hours-table tr:last-child{border-bottom:none}
+.hours-table td{padding:8px 6px;font-size:.83rem;vertical-align:middle}
+.hours-table td:first-child{color:var(--dim);width:100px}
+.hours-table input[type=time]{max-width:100px;padding:7px 9px;font-size:.8rem}
+.toggle-row{display:flex;align-items:center;gap:8px}
+.toggle{width:34px;height:18px;background:#2a2a2a;border-radius:9px;cursor:pointer;position:relative;transition:background .2s;border:none;flex-shrink:0}
+.toggle.on{background:var(--gold)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:left .2s}
+.toggle.on::after{left:18px}
+.toggle-lbl{font-size:.74rem;color:var(--muted)}
+
+/* SVC/FAQ */
+.svc-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.svc-row input{flex:1}
+.svc-row input.pr{max-width:110px;flex:none}
+.faq-row{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:12px;margin-bottom:10px}
+.faq-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.faq-num{font-size:.7rem;color:var(--gold);font-weight:600}
+.faq-lbl{font-size:.72rem;color:var(--muted);margin-bottom:4px}
+.btn-rm{background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.2);color:var(--danger);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:.75rem;transition:all .15s}
+.btn-rm:hover{background:rgba(231,76,60,.15)}
+.btn-add{background:rgba(46,204,113,.06);border:1px solid rgba(46,204,113,.2);color:var(--success);padding:8px 14px;border-radius:6px;cursor:pointer;font-size:.8rem;margin-top:4px;transition:all .15s;font-family:'DM Sans',sans-serif}
+.btn-add:hover{background:rgba(46,204,113,.12)}
+
+/* TONE */
+.tone-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px}
+.tone-lbl{font-size:.83rem;color:var(--dim);white-space:nowrap}
+.tone-opts{display:flex;gap:5px;flex-wrap:wrap}
+.tb{padding:5px 12px;border-radius:100px;font-size:.75rem;cursor:pointer;border:1px solid var(--b2);background:transparent;color:var(--muted);transition:all .18s;font-family:'DM Sans',sans-serif}
+.tb.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold)}
+
+/* ACTIONS */
+.actions{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap}
+.btn-save{background:var(--gold);color:#000;border:none;padding:10px 24px;border-radius:6px;font-size:.88rem;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif;transition:background .2s}
+.btn-save:hover{background:var(--gold-lt)}
+.btn-ghost{background:transparent;color:var(--gold);border:1px solid rgba(201,168,76,.3);padding:10px 20px;border-radius:6px;font-size:.88rem;cursor:pointer;transition:all .2s}
+.btn-ghost:hover{background:var(--gold-dim)}
+
+/* EMBED */
+.code-box{background:#070707;border:1px solid var(--b1);border-radius:6px;padding:14px;font-size:.78rem;color:var(--success);font-family:'Courier New',monospace;word-break:break-all;line-height:1.7}
+.btn-copy{background:transparent;border:1px solid var(--b2);color:var(--dim);padding:6px 14px;border-radius:5px;cursor:pointer;font-size:.76rem;font-family:'DM Sans',sans-serif;transition:all .2s;margin-top:8px;display:inline-block}
+.btn-copy:hover{border-color:var(--gold);color:var(--gold)}
+.btn-copy.copied{border-color:var(--success);color:var(--success)}
+
+/* PROMPT PREVIEW */
+.prompt-box{background:#070707;border:1px solid var(--b1);border-radius:6px;padding:16px;font-size:.8rem;color:#999;font-family:'Courier New',monospace;white-space:pre-wrap;line-height:1.8;min-height:200px}
+
+/* ANALYTICS */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.stat-card{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:16px;text-align:center}
+.stat-num{font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:700;color:var(--gold);line-height:1}
+.stat-lbl{font-size:.72rem;color:var(--dim);margin-top:6px}
+
+/* LEADS TABLE */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--b2);text-align:left;font-weight:600}
+.tbl td{font-size:.83rem;padding:10px 12px;border-bottom:1px solid var(--b1);color:#bbb;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--s2)}
+.badge{display:inline-block;padding:3px 9px;border-radius:100px;font-size:.68rem;font-weight:600}
+.badge-lead{background:rgba(46,204,113,.1);color:var(--success);border:1px solid rgba(46,204,113,.2)}
+.badge-chat{background:rgba(52,152,219,.1);color:#3498db;border:1px solid rgba(52,152,219,.2)}
+
+/* CONV */
+.conv-row{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
+.conv-row:hover{border-color:var(--gold)}
+.conv-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.conv-sid{font-size:.72rem;color:var(--dim);font-family:'Courier New',monospace}
+.conv-time{font-size:.7rem;color:var(--muted)}
+.conv-preview{font-size:.82rem;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* CONV DETAIL */
+.conv-msg{display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;padding:4px}
+.conv-msg::-webkit-scrollbar{width:2px}
+.conv-msg::-webkit-scrollbar-thumb{background:var(--b2)}
+.cm{padding:8px 12px;border-radius:8px;font-size:.83rem;line-height:1.6;max-width:85%}
+.cm.user{background:var(--gold);color:#000;align-self:flex-end;border-bottom-right-radius:2px}
+.cm.bot{background:var(--s2);border:1px solid var(--b2);align-self:flex-start;border-bottom-left-radius:2px}
+.back-btn{background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:.82rem;margin-bottom:16px;display:flex;align-items:center;gap:6px;transition:color .15s;font-family:'DM Sans',sans-serif}
+.back-btn:hover{color:var(--gold)}
+
+/* EMPTY */
+.empty{text-align:center;padding:60px 20px;color:#333}
+.empty-ico{font-size:3rem;margin-bottom:16px}
+.empty h2{color:#333;font-weight:500;font-size:1rem;font-family:'DM Sans',sans-serif}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--s1);border:1px solid var(--success);color:var(--success);padding:11px 20px;border-radius:8px;font-size:.85rem;display:none;z-index:999;animation:slideUp .2s ease}
+.toast.err{border-color:var(--danger);color:var(--danger)}
+@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* LOGIN */
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0a0a0a}
+.login-card{background:var(--s1);border:1px solid var(--b2);border-radius:12px;padding:36px;width:320px}
+.login-logo{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:700;color:var(--gold);margin-bottom:4px}
+.login-logo span{color:#fff}
+.login-sub{font-size:.82rem;color:var(--muted);margin-bottom:24px}
+.login-card input[type=password]{width:100%;margin-bottom:12px}
+.btn-login{width:100%;background:var(--gold);color:#000;border:none;padding:11px;border-radius:6px;font-size:.9rem;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif;transition:background .2s}
+.btn-login:hover{background:var(--gold-lt)}
+.login-err{font-size:.78rem;color:var(--danger);margin-top:8px;display:none}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <div class="login-logo">Nexa<span>Bot</span></div>
+    <div class="login-sub">Admin paneline giriş yapın</div>
+    <input type="password" id="loginPass" placeholder="Şifre" />
+    <button class="btn-login" onclick="doLogin()">Giriş Yap</button>
+    <div class="login-err" id="loginErr">Hatalı şifre.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appWrap" style="display:none">
+
+<div class="topbar">
+  <div class="logo">Nexa<span>Bot</span><small>Admin</small></div>
+  <div class="topbar-r">
+    <div class="sys-ok">Sistem Aktif</div>
+    <button class="btn-logout" onclick="doLogout()">Çıkış</button>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- COL 1 -->
+  <div class="col1">
+    <div class="col-hdr">Müşteriler</div>
+    <ul id="clientList"><li style="padding:12px 14px;font-size:.82rem;color:#333">Henüz müşteri yok</li></ul>
+    <div class="col1-foot">
+      <button class="btn-new" onclick="newClient()">+ Yeni Müşteri</button>
+    </div>
+  </div>
+
+  <!-- COL 2 -->
+  <div class="col2">
+    <div class="sec-grp">Setup</div>
+    <div class="si active" onclick="showSec('business')" data-s="business"><span class="si-ico">🏢</span><span class="si-lbl">Business Info</span></div>
+    <div class="si" onclick="showSec('hours')" data-s="hours"><span class="si-ico">🕐</span><span class="si-lbl">Hours</span></div>
+    <div class="si" onclick="showSec('services')" data-s="services"><span class="si-ico">🛎️</span><span class="si-lbl">Services</span></div>
+    <div class="si" onclick="showSec('pricing')" data-s="pricing"><span class="si-ico">💰</span><span class="si-lbl">Pricing</span></div>
+    <div class="si" onclick="showSec('faq')" data-s="faq"><span class="si-ico">❓</span><span class="si-lbl">FAQs</span></div>
+    <div class="si" onclick="showSec('booking')" data-s="booking"><span class="si-ico">📅</span><span class="si-lbl">Booking Rules</span></div>
+    <div class="si" onclick="showSec('personality')" data-s="personality"><span class="si-ico">🎭</span><span class="si-lbl">Personality</span></div>
+    <div class="si" onclick="showSec('extra')" data-s="extra"><span class="si-ico">📝</span><span class="si-lbl">Extra Info</span></div>
+    <div class="sec-div"></div>
+    <div class="sec-grp">Tools</div>
+    <div class="si" onclick="showSec('preview')" data-s="preview"><span class="si-ico">👁️</span><span class="si-lbl">Preview Prompt</span></div>
+    <div class="si" onclick="showSec('embed')" data-s="embed"><span class="si-ico">🔗</span><span class="si-lbl">Embed</span></div>
+    <div class="sec-div"></div>
+    <div class="sec-grp">Data</div>
+    <div class="si" onclick="showSec('leads')" data-s="leads"><span class="si-ico">🎯</span><span class="si-lbl">Leads</span></div>
+    <div class="si" onclick="showSec('conversations')" data-s="conversations"><span class="si-ico">💬</span><span class="si-lbl">Conversations</span></div>
+    <div class="si" onclick="showSec('analytics')" data-s="analytics"><span class="si-ico">📊</span><span class="si-lbl">Analytics</span></div>
+  </div>
+
+  <!-- COL 3 -->
+  <div class="col3" id="mainContent">
+    <div class="empty"><div class="empty-ico">🤖</div><h2>Sol taraftan müşteri seç veya yeni ekle</h2></div>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── AUTH ──────────────────────────────────────────────────────
+let token = localStorage.getItem('nxbt') || null;
+
+function ah() { return {'Content-Type':'application/json','Authorization':'Bearer '+token}; }
+
+function doLogin() {
+  const pass = document.getElementById('loginPass').value;
+  const err  = document.getElementById('loginErr');
+  err.style.display = 'none';
+  fetch('/api/admin/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass})})
+    .then(r => r.json().then(d => ({ok:r.ok,d})))
+    .then(({ok,d}) => {
+      if (!ok) { err.style.display='block'; return; }
+      token = d.token;
+      localStorage.setItem('nxbt', token);
+      showApp();
+    }).catch(() => { err.textContent='Sunucu hatası.'; err.style.display='block'; });
+}
+function doLogout() {
+  token=null; localStorage.removeItem('nxbt');
+  document.getElementById('appWrap').style.display='none';
+  document.getElementById('loginWrap').style.display='flex';
+  document.getElementById('loginPass').value='';
+}
+function showApp() {
+  document.getElementById('loginWrap').style.display='none';
+  document.getElementById('appWrap').style.display='block';
+  loadAll();
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+  if (token) showApp();
+});
+
+// ── STATE ─────────────────────────────────────────────────────
+let businesses = {};
+let currentId  = null;
+let currentSec = 'business';
+let svcCount   = 0, faqCount = 0;
+
+const DAYS = ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'];
+const SECTORS = ['Restoran & Kafe','Güzellik & SPA','Klinik & Diş','Otel & Konaklama','Fitness & Spor','Teknik Servis','Eğitim & Kurs','Emlak','Oto Servis','Hukuk & Muhasebe','Diğer'];
+
+function esc(s) {
+  if (s==null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function loadAll() {
+  try {
+    const r = await fetch('/api/businesses', {headers:ah()});
+    if (r.status===401) { doLogout(); return; }
+    const list = await r.json();
+    list.forEach(b => { businesses[b.id]=b; });
+    renderClients();
+  } catch(e) {}
+}
+
+// ── CLIENTS ───────────────────────────────────────────────────
+function renderClients() {
+  const ul = document.getElementById('clientList');
+  const list = Object.values(businesses);
+  if (!list.length) { ul.innerHTML='<li style="padding:12px 14px;font-size:.82rem;color:#333">Henüz müşteri yok</li>'; return; }
+  ul.innerHTML='';
+  list.forEach(b => {
+    const li = document.createElement('li');
+    li.className = 'ci' + (currentId===b.id?' active':'');
+    li.innerHTML = `
+      <span class="ci-emoji">${esc(b.emoji||'🏢')}</span>
+      <div class="ci-info">
+        <div class="ci-name">${esc(b.name||'İsimsiz')}</div>
+        <div class="ci-sec">${esc(b.sector||'—')}</div>
+      </div>
+      <button class="btn-del" onclick="event.stopPropagation();delClient('${esc(b.id)}')">✕</button>`;
+    li.onclick = () => selectClient(b.id);
+    ul.appendChild(li);
+  });
+}
+
+async function delClient(id) {
+  if (!confirm('Bu müşteri silinecek. Emin misiniz?')) return;
+  try {
+    await fetch('/api/business/'+id, {method:'DELETE',headers:ah()});
+    delete businesses[id];
+    if (currentId===id) {
+      currentId=null;
+      document.getElementById('mainContent').innerHTML='<div class="empty"><div class="empty-ico">🤖</div><h2>Sol taraftan müşteri seç veya yeni ekle</h2></div>';
+    }
+    renderClients();
+    toast('Müşteri silindi');
+  } catch(e) { toast('Silme hatası!',true); }
+}
+
+function newClient() {
+  currentId=null; renderClients();
+  currentSec='business'; updateSecMenu();
+  renderSec('business',{});
+}
+function selectClient(id) {
+  currentId=id; renderClients();
+  currentSec='business'; updateSecMenu();
+  renderSec('business', businesses[id]||{});
+}
+function showSec(s) {
+  currentSec=s; updateSecMenu();
+  renderSec(s, businesses[currentId]||{});
+}
+function updateSecMenu() {
+  document.querySelectorAll('.si').forEach(el => el.classList.toggle('active', el.dataset.s===currentSec));
+}
+
+// ── SECTIONS ──────────────────────────────────────────────────
+function renderSec(s, b) {
+  const map = {
+    business:secBusiness, hours:secHours, services:secServices,
+    pricing:secPricing, faq:secFaq, booking:secBooking,
+    personality:secPersonality, extra:secExtra,
+    preview:secPreview, embed:secEmbed,
+    leads:secLeads, conversations:secConversations, analytics:secAnalytics
+  };
+  const fn = map[s] || secBusiness;
+  document.getElementById('mainContent').innerHTML = fn(b);
+  if (s==='services') { svcCount=0; (b.services||[]).forEach(sv=>addSvc(sv.name,sv.price)); }
+  if (s==='faq')      { faqCount=0; (b.faqs||[]).forEach(f=>addFaq(f.q,f.a)); }
+  if (s==='leads')        loadLeads();
+  if (s==='conversations') loadConvs();
+  if (s==='analytics')    loadAnalytics();
+}
+
+// ── BUSINESS INFO ─────────────────────────────────────────────
+function secBusiness(b) { return `
+  <div class="page-h">🏢 Business Info</div>
+  <div class="page-sub">Botun tanıtacağı temel bilgiler</div>
+  <div class="card">
+    <div class="fg-grid">
+      <div class="fg"><label>İşletme Adı *</label><input id="fName" value="${esc(b.name||'')}" placeholder="Ör: Lezzet Köşesi" /></div>
+      <div class="fg"><label>Sektör</label><select id="fSector">${SECTORS.map(s=>`<option ${b.sector===s?'selected':''}>${esc(s)}</option>`).join('')}</select></div>
+      <div class="fg"><label>Emoji</label><input id="fEmoji" value="${esc(b.emoji||'🏢')}" style="font-size:1.2rem;text-align:center;max-width:70px" /></div>
+      <div class="fg"><label>Telefon</label><input id="fPhone" value="${esc(b.phone||'')}" placeholder="+90 212 XXX XX XX" /></div>
+      <div class="fg full"><label>Adres</label><input id="fAddress" value="${esc(b.address||'')}" placeholder="Mahalle, Sokak, İlçe / İl" /></div>
+      <div class="fg"><label>Web Sitesi</label><input id="fWebsite" value="${esc(b.website||'')}" placeholder="https://siteniz.com" /></div>
+      <div class="fg"><label>E-posta</label><input id="fEmail" value="${esc(b.email||'')}" placeholder="info@isletme.com" /></div>
+      <div class="fg full"><label>Karşılama Mesajı (TR)</label><input id="fGreeting" value="${esc(b.greeting||'')}" placeholder="Merhaba! Size nasıl yardımcı olabilirim?" /></div>
+      <div class="fg full"><label>Karşılama Mesajı (EN)</label><input id="fGreetingEn" value="${esc(b.greeting_en||'')}" placeholder="Hello! How can I help you today?" /></div>
+      <div class="fg full"><label>İşletme Hakkında</label><textarea id="fAbout" placeholder="2-3 cümle...">${esc(b.about||'')}</textarea></div>
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn-save" onclick="saveSec('business')">💾 Kaydet</button>
+    <button class="btn-ghost" onclick="previewBot()">🤖 Test Et</button>
+  </div>`; }
+
+// ── HOURS ─────────────────────────────────────────────────────
+function secHours(b) {
+  const h = b.hours_detail||{};
+  const rows = DAYS.map(d => {
+    const v = h[d]||{open:'09:00',close:'18:00',closed:false};
+    return `<tr>
+      <td>${esc(d)}</td>
+      <td><input type="text" id="ho_${d}" value="${esc(v.open)}" placeholder="09:00" maxlength="5" style="width:70px;text-align:center" ${v.closed?'disabled':''} /></td>
+      <td style="padding:0 8px;color:#333">—</td>
+      <td><input type="text" id="hc_${d}" value="${esc(v.close)}" placeholder="00:00" maxlength="5" style="width:70px;text-align:center" ${v.closed?'disabled':''} /></td>
+      <td><div class="toggle-row">
+        <button class="toggle ${v.closed?'':'on'}" id="ht_${d}" onclick="toggleDay('${d}')"></button>
+        <span class="toggle-lbl" id="hl_${d}">${v.closed?'Kapalı':'Açık'}</span>
+      </div></td></tr>`;
+  }).join('');
+  return `
+  <div class="page-h">🕐 Hours</div>
+  <div class="page-sub">Her gün için çalışma saati</div>
+  <div class="card"><table class="hours-table"><tbody>${rows}</tbody></table></div>
+  <div class="actions"><button class="btn-save" onclick="saveSec('hours')">💾 Kaydet</button></div>`; }
+
+function toggleDay(d) {
+  const tog = document.getElementById('ht_'+d);
+  const isOn = tog.classList.contains('on');
+  tog.classList.toggle('on',!isOn);
+  document.getElementById('hl_'+d).textContent = isOn?'Kapalı':'Açık';
+  document.getElementById('ho_'+d).disabled = isOn;
+  document.getElementById('hc_'+d).disabled = isOn;
+}
+
+// ── SERVICES ──────────────────────────────────────────────────
+function secServices(b) { return `
+  <div class="page-h">🛎️ Services</div>
+  <div class="page-sub">Sunduğunuz tüm hizmetler</div>
+  <div class="card">
+    <div id="svcList"></div>
+    <button class="btn-add" onclick="addSvc()">+ Hizmet Ekle</button>
+  </div>
+  <div class="actions"><button class="btn-save" onclick="saveSec('services')">💾 Kaydet</button></div>`; }
+
+function addSvc(name='',price='') {
+  svcCount++;
+  const id='svc'+svcCount;
+  const el=document.createElement('div');
+  el.className='svc-row'; el.id=id;
+  el.innerHTML=`<input placeholder="Hizmet adı (ör: Saç Kesimi)" value="${esc(name)}" class="sn" />
+    <input placeholder="Fiyat (ör: ₺250)" value="${esc(price)}" class="sp pr" />
+    <button class="btn-rm" onclick="document.getElementById('${id}').remove()">✕</button>`;
+  document.getElementById('svcList').appendChild(el);
+}
+
+// ── PRICING ───────────────────────────────────────────────────
+function secPricing(b) { return `
+  <div class="page-h">💰 Pricing</div>
+  <div class="page-sub">Fiyat politikası ve ödeme yöntemleri</div>
+  <div class="card">
+    <div class="fg-grid">
+      <div class="fg full"><label>Fiyat Notları</label>
+        <textarea id="fPriceNote" placeholder="KDV dahildir. 3+ kişide %10 indirim...">${esc(b.price_note||'')}</textarea></div>
+      <div class="fg"><label>Para Birimi</label>
+        <select id="fCurrency"><option ${b.currency==='TL'?'selected':''}>TL</option><option ${b.currency==='EUR'?'selected':''}>EUR</option><option ${b.currency==='USD'?'selected':''}>USD</option></select></div>
+      <div class="fg"><label>Ödeme Yöntemleri</label>
+        <input id="fPayment" value="${esc(b.payment||'')}" placeholder="Nakit, Kredi Kartı, EFT" /></div>
+    </div>
+  </div>
+  <div class="actions"><button class="btn-save" onclick="saveSec('pricing')">💾 Kaydet</button></div>`; }
+
+// ── FAQ ───────────────────────────────────────────────────────
+function secFaq(b) { return `
+  <div class="page-h">❓ FAQs</div>
+  <div class="page-sub">Sık sorulan sorular ve cevaplar</div>
+  <div class="card">
+    <div id="faqList"></div>
+    <button class="btn-add" onclick="addFaq()">+ Soru Ekle</button>
+  </div>
+  <div class="actions"><button class="btn-save" onclick="saveSec('faq')">💾 Kaydet</button></div>`; }
+
+function addFaq(q='',a='') {
+  faqCount++;
+  const id='faq'+faqCount;
+  const el=document.createElement('div');
+  el.className='faq-row'; el.id=id;
+  el.innerHTML=`<div class="faq-hdr"><span class="faq-num">Soru #${faqCount}</span><button class="btn-rm" onclick="document.getElementById('${id}').remove()">✕ Sil</button></div>
+    <div class="faq-lbl">Soru</div>
+    <input placeholder="Ör: Park yeriniz var mı?" value="${esc(q)}" class="fq" style="width:100%;margin-bottom:8px" />
+    <div class="faq-lbl">Cevap</div>
+    <textarea placeholder="Cevabı buraya yazın..." class="fa">${esc(a)}</textarea>`;
+  document.getElementById('faqList').appendChild(el);
+}
+
+// ── BOOKING ───────────────────────────────────────────────────
+function secBooking(b) {
+  const bm = b.booking_method || '';
+  return `
+  <div class="page-h">📅 Booking Rules</div>
+  <div class="page-sub">Rezervasyon kuralları</div>
+  <div class="card">
+    <div class="card-title">Rezervasyon Yöntemi</div>
+    <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;color:${bm===''?'var(--gold)':'var(--dim)'}">
+        <input type="radio" name="bookMethod" value="" ${bm===''?'checked':''} onchange="toggleBookMethod(this.value)" /> Belirsiz
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;color:${bm==='bot'?'var(--gold)':'var(--dim)'}">
+        <input type="radio" name="bookMethod" value="bot" ${bm==='bot'?'checked':''} onchange="toggleBookMethod(this.value)" /> 🤖 Bot Otomatik Alsın (EmailJS)
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.85rem;color:${bm==='call'?'var(--gold)':'var(--dim)'}">
+        <input type="radio" name="bookMethod" value="call" ${bm==='call'?'checked':''} onchange="toggleBookMethod(this.value)" /> 📞 Bizi Arasın
+      </label>
+    </div>
+    <div id="ejsFields" style="display:${bm==='bot'?'block':'none'};margin-bottom:16px;background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:14px">
+      <div class="card-title">EmailJS Ayarları</div>
+      <div class="fg-grid">
+        <div class="fg"><label>Service ID</label><input id="fEjsSvc" value="${esc(b.emailjs_service_id||'')}" placeholder="service_xxxxx" /></div>
+        <div class="fg"><label>Template ID</label><input id="fEjsTpl" value="${esc(b.emailjs_template_id||'')}" placeholder="template_xxxxx" /></div>
+        <div class="fg"><label>Public Key</label><input id="fEjsKey" value="${esc(b.emailjs_public_key||'')}" placeholder="xxxxxxxxxxxx" /></div>
+        <div class="fg"><label>Bildirim E-postası</label><input id="fEjsEmail" value="${esc(b.emailjs_notify_email||'')}" placeholder="info@isletme.com" /></div>
+      </div>
+    </div>
+    <div class="fg-grid">
+      <div class="fg"><label>Min. kaç saat önceden?</label><input id="fBMin" type="number" min="0" value="${b.booking_min!=null&&b.booking_min!==''?esc(b.booking_min):''}" placeholder="2" /></div>
+      <div class="fg"><label>Max. kaç gün önceden?</label><input id="fBMax" type="number" min="0" value="${b.booking_max!=null&&b.booking_max!==''?esc(b.booking_max):''}" placeholder="30" /></div>
+      <div class="fg"><label>Seans süresi (dk)</label><input id="fBDur" type="number" min="0" value="${b.booking_duration!=null&&b.booking_duration!==''?esc(b.booking_duration):''}" placeholder="60" /></div>
+      <div class="fg"><label>Kapasite (kişi)</label><input id="fBCap" type="number" min="0" value="${esc(b.booking_capacity||'')}" placeholder="Sınırsız" /></div>
+      <div class="fg full"><label>İptal Politikası</label><textarea id="fBPol" placeholder="24 saat öncesine kadar ücretsiz iptal...">${esc(b.booking_policy||'')}</textarea></div>
+      <div class="fg full"><label>Onay Mesajı</label><textarea id="fBCon" placeholder="Rezervasyonunuz alındı! Sizi bekliyoruz...">${esc(b.booking_confirm||'')}</textarea></div>
+    </div>
+  </div>
+  <div class="actions"><button class="btn-save" onclick="saveSec('booking')">💾 Kaydet</button></div>`; }
+
+function toggleBookMethod(v) {
+  const ejs = document.getElementById('ejsFields');
+  if (ejs) ejs.style.display = v === 'bot' ? 'block' : 'none';
+}
+
+// ── PERSONALITY ───────────────────────────────────────────────
+function secPersonality(b) {
+  const p = b.personality||{};
+  const tones = ['Resmi','Samimi','Enerjik','Sakin','Esprili'];
+  const langs  = ['Türkçe','İngilizce','İkisi de'];
+  return `
+  <div class="page-h">🎭 Personality & Tone</div>
+  <div class="page-sub">Botun konuşma tarzı</div>
+  <div class="card">
+    <div class="tone-row">
+      <span class="tone-lbl">Konuşma Tonu</span>
+      <div class="tone-opts">${tones.map(t=>`<button class="tb ${(p.tone||'Samimi')===t?'active':''}" onclick="setTone(this,'${esc(t)}')">${esc(t)}</button>`).join('')}</div>
+    </div>
+    <input type="hidden" id="fTone" value="${esc(p.tone||'Samimi')}" />
+    <div class="tone-row" style="margin-top:12px">
+      <span class="tone-lbl">Dil</span>
+      <div class="tone-opts">${langs.map(l=>`<button class="tb ${(p.lang||'Türkçe')===l?'active':''}" onclick="setLang(this,'${esc(l)}')">${esc(l)}</button>`).join('')}</div>
+    </div>
+    <input type="hidden" id="fLang" value="${esc(p.lang||'Türkçe')}" />
+    <div style="margin-top:20px">
+      <div class="fg full" style="margin-bottom:12px"><label>Bot İsmi</label>
+        <input id="fBotName" value="${esc(b.bot_name||'NexaBot')}" placeholder="Ör: Bella, Max, Aria" /></div>
+      <div class="fg full"><label>Özel Talimatlar</label>
+        <textarea id="fInst" placeholder="Ör: Rakip firmalardan bahsetme. Her cevapta randevu teklif et...">${esc(b.instructions||'')}</textarea></div>
+    </div>
+  </div>
+  <div class="actions"><button class="btn-save" onclick="saveSec('personality')">💾 Kaydet</button></div>`; }
+
+function setTone(el,v) {
+  el.closest('.tone-opts').querySelectorAll('.tb').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active'); document.getElementById('fTone').value=v;
+}
+function setLang(el,v) {
+  el.closest('.tone-opts').querySelectorAll('.tb').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active'); document.getElementById('fLang').value=v;
+}
+
+// ── EXTRA ─────────────────────────────────────────────────────
+function secExtra(b) { return `
+  <div class="page-h">📝 Extra Info</div>
+  <div class="page-sub">Kampanyalar, park, sosyal medya, kısıtlamalar ve öncelikli talimatlar</div>
+  <div class="card">
+    <div class="card-title" style="color:var(--gold);font-size:.8rem">⭐ Ekstra Bilgiler (En Öncelikli)</div>
+    <div class="fg full" style="margin-bottom:20px">
+      <label>Buraya yazdıklarınız diğer tüm bölümlerin önüne geçer. Boş bırakırsanız hiçbir şeyi ezmez.</label>
+      <textarea id="fExtraNotes" style="min-height:130px" placeholder="Ör: Fiyat sorulunca sadece şunu de... Rezervasyonda şu kuralı uygula...">${esc(b.extra_notes||'')}</textarea>
+    </div>
+    <div class="fg-grid">
+      <div class="fg full"><label>Kampanyalar / Promosyonlar</label><textarea id="fCamp" placeholder="Bu ay saç boyamada %20 indirim...">${esc(b.campaigns||'')}</textarea></div>
+      <div class="fg full"><label>Park / Ulaşım</label><textarea id="fPark" placeholder="Ücretsiz otopark mevcut...">${esc(b.parking||'')}</textarea></div>
+      <div class="fg"><label>Sosyal Medya</label><input id="fSoc" value="${esc(b.social||'')}" placeholder="Instagram: @hesap" /></div>
+      <div class="fg"><label>Bot Konuşmaması Gerekenler</label><input id="fRest" value="${esc(b.restrictions||'')}" placeholder="Rakip firmalar..." /></div>
+    </div>
+  </div>
+  <div class="actions"><button class="btn-save" onclick="saveSec('extra')">💾 Kaydet</button></div>`; }
+
+// ── PREVIEW PROMPT ────────────────────────────────────────────
+function secPreview(b) {
+  return `
+  <div class="page-h">👁️ Preview Prompt</div>
+  <div class="page-sub">Claude API'ye gönderilen sistem promptu</div>
+  <div class="card"><div class="prompt-box">${esc(buildPrompt(b))}</div></div>
+  <div class="actions"><button class="btn-ghost" onclick="previewBot()">🤖 Botu Test Et</button></div>`; }
+
+function buildPrompt(b) {
+  if (!b.name) return 'Önce işletme bilgilerini doldurun...';
+  const svcs = (b.services||[]).map(s=>`- ${s.name}: ${s.price}`).join('\n');
+  const faqs = (b.faqs||[]).map(f=>`S: ${f.q}\nC: ${f.a}`).join('\n\n');
+  const p = b.personality||{};
+  let hrs = b.hours||'Belirtilmemiş';
+  if (b.hours_detail) hrs = DAYS.map(d=>{const h=b.hours_detail[d];return h&&!h.closed?`${d}: ${h.open}-${h.close}`:`${d}: Kapalı`;}).join('\n');
+  return `Sen ${b.bot_name||'NexaBot'} adlı bir AI asistansın.\nİşletme: ${b.name} (${b.sector||''})\nTelefon: ${b.phone||'—'} | Adres: ${b.address||'—'}\n${b.about?'\nHakkında: '+b.about:''}\n\nÇALIŞMA SAATLERİ:\n${hrs}\n\nHİZMETLER:\n${svcs||'Belirtilmemiş'}${b.price_note?'\nFiyat: '+b.price_note:''}${faqs?'\n\nSSS:\n'+faqs:''}${b.booking_policy?'\n\nRezarvasyon: '+b.booking_policy:''}${b.campaigns?'\nKampanyalar: '+b.campaigns:''}\n\nTon: ${p.tone||'Samimi'} | Dil: ${p.lang||'Türkçe'}${b.instructions?'\nTalimatlar: '+b.instructions:''}`.trim();
+}
+
+// ── EMBED ─────────────────────────────────────────────────────
+function secEmbed(b) {
+  const host   = window.location.host;
+  const proto  = window.location.protocol;
+  const code   = b.id ? `<script src="${proto}//${host}/embed/${b.id}"><\/script>` : 'Önce kaydedin...';
+  const wUrl   = b.id ? `${proto}//${host}/widget/${b.id}` : '—';
+  return `
+  <div class="page-h">🔗 Embed</div>
+  <div class="page-sub">Müşterinin sitesine yapıştırılacak kod</div>
+  <div class="card">
+    <div class="card-title">Script Embed (&lt;/body&gt; öncesine)</div>
+    <div class="code-box" id="embedCode">${esc(code)}</div>
+    <button class="btn-copy" id="copyBtn1" onclick="copyText('${esc(code)}','copyBtn1')">📋 Kopyala</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Direkt Widget URL</div>
+    <div class="code-box" id="widgetUrl">${esc(wUrl)}</div>
+    <button class="btn-copy" id="copyBtn2" onclick="copyText('${esc(wUrl)}','copyBtn2')">📋 Kopyala</button>
+  </div>
+  ${b.id?`<div class="actions"><button class="btn-ghost" onclick="window.open('${esc(wUrl)}','_blank','width=420,height=650')">🤖 Test Et</button></div>`:''}`;
+}
+
+function copyText(txt, btnId) {
+  navigator.clipboard.writeText(txt).then(() => {
+    const btn = document.getElementById(btnId);
+    btn.textContent = '✅ Kopyalandı'; btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent='📋 Kopyala'; btn.classList.remove('copied'); },2000);
+  });
+}
+
+// ── LEADS ─────────────────────────────────────────────────────
+function secLeads(b) {
+  return `
+  <div class="page-h">🎯 Leads</div>
+  <div class="page-sub">Potansiyel müşteri mesajları</div>
+  <div id="leadsContent"><div style="color:var(--muted);padding:20px">Yükleniyor...</div></div>`; }
+
+async function loadLeads() {
+  try {
+    const r = await fetch('/api/leads', {headers:ah()});
+    if (r.status===401) { doLogout(); return; }
+    const all = await r.json();
+    const leads = currentId ? all.filter(l=>l.businessId===currentId) : all;
+    const el = document.getElementById('leadsContent');
+    if (!el) return;
+    if (!leads.length) { el.innerHTML='<div class="empty"><div class="empty-ico">🎯</div><h2>Henüz lead yok</h2></div>'; return; }
+    el.innerHTML=`<div class="card" style="padding:0;overflow:hidden">
+      <table class="tbl">
+        <thead><tr><th>Tarih</th><th>Session</th><th>İşletme</th><th>Mesaj</th></tr></thead>
+        <tbody>${leads.slice().reverse().map(l=>`
+          <tr>
+            <td style="white-space:nowrap;color:var(--muted)">${new Date(l.timestamp).toLocaleDateString('tr-TR')}<br><span style="font-size:.7rem">${new Date(l.timestamp).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}</span></td>
+            <td><code style="font-size:.72rem;color:var(--dim)">${esc(l.sessionId.substring(0,8))}…</code></td>
+            <td>${esc((businesses[l.businessId]||{}).name||l.businessId.substring(0,8))}</td>
+            <td style="max-width:300px">${esc(l.message)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`;
+  } catch(e) { const el=document.getElementById('leadsContent'); if(el) el.innerHTML='<div style="color:var(--danger);padding:20px">Yükleme hatası</div>'; }
+}
+
+// ── CONVERSATIONS ─────────────────────────────────────────────
+function secConversations(b) {
+  return `
+  <div class="page-h">💬 Conversations</div>
+  <div class="page-sub">Tüm sohbet geçmişleri</div>
+  <div id="convsContent"><div style="color:var(--muted);padding:20px">Yükleniyor...</div></div>`; }
+
+async function loadConvs() {
+  try {
+    const r = await fetch('/api/conversations', {headers:ah()});
+    if (r.status===401) { doLogout(); return; }
+    const list = await r.json();
+    const el = document.getElementById('convsContent');
+    if (!el) return;
+    if (!list.length) { el.innerHTML='<div class="empty"><div class="empty-ico">💬</div><h2>Henüz konuşma yok</h2></div>'; return; }
+    el.innerHTML = list.slice().reverse().map(c=>`
+      <div class="conv-row" onclick="viewConv('${esc(c.sessionId)}')">
+        <div class="conv-meta">
+          <code class="conv-sid">${esc(c.sessionId.substring(0,12))}…</code>
+          <span class="conv-time">${new Date(c.lastTs).toLocaleDateString('tr-TR')} ${new Date(c.lastTs).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}</span>
+        </div>
+        <div class="conv-preview">${esc(c.lastMsg||'—')}</div>
+        <div style="margin-top:4px"><span class="badge badge-chat">${c.msgCount} mesaj</span></div>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+async function viewConv(sid) {
+  const el = document.getElementById('convsContent');
+  if (!el) return;
+  try {
+    const r = await fetch('/api/conversation/'+sid, {headers:ah()});
+    const msgs = await r.json();
+    el.innerHTML = `
+      <button class="back-btn" onclick="loadConvs()">← Geri</button>
+      <div class="card">
+        <div class="card-title">Session: ${esc(sid.substring(0,16))}…</div>
+        <div class="conv-msg">${msgs.map(m=>`<div class="cm ${m.role==='user'?'user':'bot'}">${esc(m.content)}</div>`).join('')}</div>
+      </div>`;
+    el.querySelector('.conv-msg').scrollTop=9999;
+  } catch(e) {}
+}
+
+// ── ANALYTICS ─────────────────────────────────────────────────
+function secAnalytics(b) {
+  return `
+  <div class="page-h">📊 Analytics</div>
+  <div class="page-sub">Kullanım istatistikleri</div>
+  <div id="analyticsContent"><div style="color:var(--muted);padding:20px">Yükleniyor...</div></div>`; }
+
+async function loadAnalytics() {
+  try {
+    const r = await fetch('/api/analytics', {headers:ah()});
+    if (r.status===401) { doLogout(); return; }
+    const data = await r.json();
+    const el = document.getElementById('analyticsContent');
+    if (!el) return;
+    if (!data.length) { el.innerHTML='<div class="empty"><div class="empty-ico">📊</div><h2>Henüz veri yok</h2></div>'; return; }
+    const totalMsgs = data.reduce((s,d)=>s+d.messageCount,0);
+    const totalSess = data.reduce((s,d)=>s+d.sessionCount,0);
+    const totalBiz  = data.length;
+    el.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-num">${totalBiz}</div><div class="stat-lbl">Aktif İşletme</div></div>
+        <div class="stat-card"><div class="stat-num">${totalSess}</div><div class="stat-lbl">Toplam Oturum</div></div>
+        <div class="stat-card"><div class="stat-num">${totalMsgs}</div><div class="stat-lbl">Toplam Mesaj</div></div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table class="tbl">
+          <thead><tr><th>İşletme</th><th>Oturumlar</th><th>Mesajlar</th><th>Ort. / Oturum</th></tr></thead>
+          <tbody>${data.sort((a,b)=>b.messageCount-a.messageCount).map(d=>`
+            <tr>
+              <td><strong>${esc(d.businessName||d.businessId.substring(0,12))}</strong></td>
+              <td>${d.sessionCount}</td>
+              <td>${d.messageCount}</td>
+              <td>${d.sessionCount?Math.round(d.messageCount/d.sessionCount):0}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch(e) {}
+}
+
+// ── SAVE ──────────────────────────────────────────────────────
+async function saveSec(s) {
+  const b = businesses[currentId]||{};
+  let patch = {};
+
+  if (s==='business') {
+    const name = document.getElementById('fName')?.value.trim();
+    if (!name) { toast('İşletme adı zorunludur!',true); return; }
+    patch = {name,sector:document.getElementById('fSector').value,emoji:document.getElementById('fEmoji').value,
+      phone:document.getElementById('fPhone').value.trim(),address:document.getElementById('fAddress').value.trim(),
+      website:document.getElementById('fWebsite').value.trim(),email:document.getElementById('fEmail').value.trim(),
+      greeting:document.getElementById('fGreeting').value.trim(),greeting_en:document.getElementById('fGreetingEn').value.trim(),
+      about:document.getElementById('fAbout').value.trim()};
+  } else if (s==='hours') {
+    const hours_detail={};
+    DAYS.forEach(d=>{ const closed=!document.getElementById('ht_'+d).classList.contains('on');
+      hours_detail[d]={open:document.getElementById('ho_'+d).value,close:document.getElementById('hc_'+d).value,closed}; });
+    patch={hours_detail};
+  } else if (s==='services') {
+    patch={services:[...document.querySelectorAll('.svc-row')].map(r=>({name:r.querySelector('.sn').value.trim(),price:r.querySelector('.sp').value.trim()})).filter(sv=>sv.name)};
+  } else if (s==='pricing') {
+    patch={price_note:document.getElementById('fPriceNote').value.trim(),currency:document.getElementById('fCurrency').value,payment:document.getElementById('fPayment').value.trim()};
+  } else if (s==='faq') {
+    patch={faqs:[...document.querySelectorAll('.faq-row')].map(r=>({q:r.querySelector('.fq').value.trim(),a:r.querySelector('.fa').value.trim()})).filter(f=>f.q)};
+  } else if (s==='booking') {
+    const bookMethod = document.querySelector('input[name="bookMethod"]:checked')?.value || '';
+    patch={booking_method:bookMethod,booking_min:document.getElementById('fBMin').value,booking_max:document.getElementById('fBMax').value,
+      booking_duration:document.getElementById('fBDur').value,booking_capacity:document.getElementById('fBCap').value,
+      booking_policy:document.getElementById('fBPol').value.trim(),booking_confirm:document.getElementById('fBCon').value.trim(),
+      emailjs_service_id:document.getElementById('fEjsSvc')?.value.trim()||'',
+      emailjs_template_id:document.getElementById('fEjsTpl')?.value.trim()||'',
+      emailjs_public_key:document.getElementById('fEjsKey')?.value.trim()||'',
+      emailjs_notify_email:document.getElementById('fEjsEmail')?.value.trim()||''};
+  } else if (s==='personality') {
+    patch={personality:{tone:document.getElementById('fTone').value,lang:document.getElementById('fLang').value},
+      bot_name:document.getElementById('fBotName').value.trim(),instructions:document.getElementById('fInst').value.trim()};
+  } else if (s==='extra') {
+    patch={extra_notes:document.getElementById('fExtraNotes').value.trim(),campaigns:document.getElementById('fCamp').value.trim(),parking:document.getElementById('fPark').value.trim(),
+      social:document.getElementById('fSoc').value.trim(),restrictions:document.getElementById('fRest').value.trim()};
+  }
+
+  try {
+    const r = await fetch('/api/business', {method:'POST',headers:ah(),body:JSON.stringify({businessId:currentId||undefined,...b,...patch})});
+    if (r.status===401) { doLogout(); return; }
+    if (!r.ok) { const e=await r.text(); toast('Hata: '+e.substring(0,50),true); return; }
+    const result = await r.json();
+    businesses[result.businessId] = result.business;
+    currentId = result.businessId;
+    renderClients();
+    renderSec(s, businesses[currentId]);
+    toast('✅ Kaydedildi!');
+  } catch(e) { toast('Hata: '+e.message,true); }
+}
+
+function previewBot() {
+  if (!currentId) { toast('Önce kaydedin!',true); return; }
+  window.open(`/widget/${currentId}`,'_blank','width=420,height=650');
+}
+
+function toast(msg, isErr=false) {
+  const el = document.getElementById('toast');
+  el.textContent=msg; el.className='toast'+(isErr?' err':'');
+  el.style.display='block'; setTimeout(()=>el.style.display='none',3000);
+}
+</script>
+</body>
+</html>
