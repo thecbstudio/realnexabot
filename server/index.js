@@ -3,6 +3,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
 const express    = require('express');
+const helmet     = require('helmet');
 const cors       = require('cors');
 const bcrypt     = require('bcryptjs');
 const jwt        = require('jsonwebtoken');
@@ -19,12 +20,13 @@ app.set('trust proxy', 1);
 
 /* ─── ADMIN PASSWORD HASH ───────────────────────────────────────────────── */
 let adminPasswordHash = process.env.ADMIN_PASSWORD || '';
-(async () => {
-  if (adminPasswordHash && !adminPasswordHash.startsWith('$2')) {
-    console.warn('[warn] ADMIN_PASSWORD plaintext — hashing on startup...');
-    adminPasswordHash = await bcrypt.hash(adminPasswordHash, 10);
-  }
-})();
+
+/* --- HELMET (security headers) --- */
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 
 /* ─── CORS ──────────────────────────────────────────────────────────────── */
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
@@ -47,7 +49,8 @@ app.use(express.json({ limit: '10kb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 /* ─── AUTH ──────────────────────────────────────────────────────────────── */
-const JWT_SECRET = process.env.ADMIN_TOKEN || 'nexabot-default-secret';
+const JWT_SECRET = process.env.ADMIN_TOKEN;
+if (!JWT_SECRET) { console.error('FATAL: ADMIN_TOKEN env required'); process.exit(1); }
 
 function requireAdmin(req, res, next) {
   const auth = req.headers.authorization || '';
@@ -360,7 +363,7 @@ app.post('/api/chat', chatRateLimit, async (req, res) => {
   let reply = '';
   try {
     const response = await anthropic.messages.create({
-      model:      'claude-sonnet-4-6',
+      model:      'claude-sonnet-4-5-20250929',
       max_tokens: 1024,
       system:     systemPrompt,
       messages:   [...history, { role: 'user', content: message.trim() }],
@@ -420,6 +423,10 @@ setInterval(() => { db.pruneOldConversations(); }, 60 * 60 * 1000);
 async function startServer() {
   try {
     await db.init();
+    if (adminPasswordHash && !adminPasswordHash.startsWith('$2')) {
+      console.warn('[warn] ADMIN_PASSWORD plaintext - hashing on startup...');
+      adminPasswordHash = await bcrypt.hash(adminPasswordHash, 10);
+    }
     const server = app.listen(PORT, () => {
       console.log(`\n✅ NexaBot çalışıyor → http://localhost:${PORT}`);
       console.log(`   Admin panel      → http://localhost:${PORT}/admin`);
