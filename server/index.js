@@ -350,6 +350,47 @@ app.get('/api/analytics', requireAdmin, async (_req, res) => {
 });
 
 
+
+/* --- ONE-TIME MIGRATION FROM JSON --- */
+app.post('/api/admin/migrate-json', requireAdmin, async (req, res) => {
+  try {
+    const fs = require('fs');
+    const dataDir = path.join(__dirname, '..', 'data');
+    const result = { businesses: 0, conversations: 0, leads: 0 };
+    const bizPath = path.join(dataDir, 'businesses.json');
+    if (fs.existsSync(bizPath)) {
+      const obj = JSON.parse(fs.readFileSync(bizPath, 'utf8'));
+      for (const [id, biz] of Object.entries(obj)) {
+        await db.saveBusiness(id, biz); result.businesses++;
+      }
+    }
+    const convPath = path.join(dataDir, 'conversations.json');
+    if (fs.existsSync(convPath)) {
+      const obj = JSON.parse(fs.readFileSync(convPath, 'utf8'));
+      for (const [sid, conv] of Object.entries(obj)) {
+        const msgs = conv.messages || conv || [];
+        const bizId = conv.businessId || conv.business_id || '';
+        if (Array.isArray(msgs) && msgs.length) {
+          await db.saveConversation(sid, bizId, msgs); result.conversations++;
+        }
+      }
+    }
+    const leadPath = path.join(dataDir, 'leads.json');
+    if (fs.existsSync(leadPath)) {
+      const arr = JSON.parse(fs.readFileSync(leadPath, 'utf8'));
+      const items = Array.isArray(arr) ? arr : Object.values(arr);
+      for (const l of items) {
+        await db.saveLead(l.businessId || l.business_id || '', l.sessionId || l.session_id || '', l.message || '');
+        result.leads++;
+      }
+    }
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    console.error('[migrate]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 /* --- KNOWLEDGE BASE (RAG) --- */
 app.post('/api/kb/upload-pdf/:businessId', requireAdmin, upload.single('file'), async (req, res) => {
   try {
