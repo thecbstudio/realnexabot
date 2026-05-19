@@ -14,6 +14,7 @@ const db         = require('./db');
 const kb         = require('./kb');
 const crawler    = require('./crawler');
 const whatsapp   = require('./whatsapp');
+const emailer    = require('./email');
 const multer     = require('multer');
 const pdfParse   = require('pdf-parse');
 const cheerio    = require('cheerio');
@@ -320,7 +321,7 @@ app.delete('/api/business/:id', requireAdmin, async (req, res) => {
 });
 
 /* ─── PUBLIC: BUSINESS ──────────────────────────────────────────────────── */
-const PUBLIC_FIELDS = ['id','name','emoji','greeting','greeting_en','bot_name','hours_detail','hours','phone','address','services','about','quick_replies'];
+const PUBLIC_FIELDS = ['id','name','emoji','greeting','greeting_en','bot_name','hours_detail','hours','phone','address','services','about','quick_replies','widget_color','widget_bg','widget_position'];
 
 app.get('/api/business/:id', async (req, res) => {
   const biz = await db.getBusiness(req.params.id);
@@ -463,6 +464,62 @@ app.post('/api/webhook/whatsapp/:businessId', express.raw({ type: 'application/j
     console.error('[whatsapp webhook]', e.message);
   }
 });
+
+
+/* --- DAILY ANALYTICS --- */
+app.get('/api/analytics-daily/:businessId', requireAdmin, async (req, res) => {
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 2 });
+    const days = parseInt(req.query.days) || 30;
+    const since = Date.now() - days * 86400000;
+    const conv = await pool.query(
+      `SELECT to_char(to_timestamp(last_ts/1000), 'YYYY-MM-DD') AS day,
+              COUNT(*) AS sessions, SUM(msg_count) AS messages
+       FROM conversations WHERE business_id = $1 AND last_ts >= $2
+       GROUP BY day ORDER BY day`,
+      [req.params.businessId, since]
+    );
+    const leads = await pool.query(
+      `SELECT to_char(to_timestamp(timestamp/1000), 'YYYY-MM-DD') AS day, COUNT(*) AS count
+       FROM leads WHERE business_id = $1 AND timestamp >= $2
+       GROUP BY day ORDER BY day`,
+      [req.params.businessId, since]
+    );
+    await pool.end();
+    res.json({ days, conversations: conv.rows, leads: leads.rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* --- CONVERSATION EXPORT (CSV) --- */
+app.get('/api/conversations/export/:businessId', requireAdmin, async (req, res) => {
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 2 });
+    const r = await pool.query(
+      `SELECT session_id, messages, last_ts, msg_count
+       FROM conversations WHERE business_id = $1 ORDER BY last_ts DESC LIMIT 2000`,
+      [req.params.businessId]
+    );
+    await pool.end();
+    const csv = ['session_id,timestamp,role,content'];
+    for (const row of r.rows) {
+      const msgs = Array.isArray(row.messages) ? row.messages : [];
+      for (const m of msgs) {
+        const content = String(m.content || '').replace(/"/g, '""').replace(/\n/g, ' ');
+        csv.push(`"${row.session_id}","${new Date(parseInt(row.last_ts)).toISOString()}","${m.role}","${content}"`);
+      }
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="conversations-${req.params.businessId}-${Date.now()}.csv"`);
+    res.send('\uFEFF' + csv.join('\n'));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* --- ADMIN PAGES (new routes) --- */
+app.get('/admin/analytics', (_req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin', 'analytics.html')));
+app.get('/admin/customize', (_req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin', 'customize.html')));
+app.get('/admin/conversations', (_req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin', 'conversations.html')));
 
 /* --- ONE-TIME MIGRATION FROM JSON --- */
 app.post('/api/admin/migrate-json', requireAdmin, async (req, res) => {
@@ -648,7 +705,16 @@ app.post('/api/chat', chatRateLimit, async (req, res) => {
     }
   }
 
-  if (isLead(message)) await db.saveLead(bizId, sessionId, message.trim());
+  if (isLead(message)) {
+    await db.saveLead(bizId, sessionId, message.trim());
+    if (process.env.LEAD_NOTIFY_EMAIL) {
+      emailer.sendEmail({
+        to: process.env.LEAD_NOTIFY_EMAIL,
+        subject: `🔔 Yeni Lead: ${biz.name || 'NexaBot'}`,
+        html: emailer.leadNotificationHtml(biz, message.trim(), sessionId),
+      }).catch(e => console.error('[lead email]', e.message));
+    }
+  }
   await db.trackMessage(bizId, isNewSession);
 
   res.json({ reply, sessionId, citations });
