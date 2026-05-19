@@ -1,5 +1,5 @@
 'use strict';
-/* NexaBot Knowledge Base - PDF/URL/Text upload + retrieval */
+/* NexaBot Knowledge Base - PDF/URL/Text upload + retrieval with metadata */
 const { Pool } = require('pg');
 
 const pool = new Pool({
@@ -33,7 +33,7 @@ async function init() {
     CREATE INDEX IF NOT EXISTS idx_kb_chunks_biz ON kb_chunks(business_id);
     CREATE INDEX IF NOT EXISTS idx_kb_chunks_tsv ON kb_chunks USING GIN(tsv);
   `);
-  console.log('✅ Knowledge Base tables ready');
+  console.log('KB tables ready');
 }
 
 function chunkText(text, maxLen = 600) {
@@ -85,21 +85,26 @@ async function deleteSource(sourceId, businessId) {
   await pool.query('DELETE FROM kb_sources WHERE id = $1 AND business_id = $2', [sourceId, businessId]);
 }
 
+// Returns [{ chunk_text, source_name, source_type }]
 async function search(businessId, query, limit = 5) {
   if (!query || !query.trim()) return [];
   const r = await pool.query(
-    `SELECT chunk_text, ts_rank(tsv, plainto_tsquery('simple', $2)) AS rank
-     FROM kb_chunks
-     WHERE business_id = $1 AND tsv @@ plainto_tsquery('simple', $2)
+    `SELECT c.chunk_text, s.source_name, s.source_type,
+            ts_rank(c.tsv, plainto_tsquery('simple', $2)) AS rank
+     FROM kb_chunks c
+     JOIN kb_sources s ON s.id = c.source_id
+     WHERE c.business_id = $1 AND c.tsv @@ plainto_tsquery('simple', $2)
      ORDER BY rank DESC LIMIT $3`,
     [businessId, query, limit]
   );
-  if (r.rows.length) return r.rows.map(x => x.chunk_text);
+  if (r.rows.length) return r.rows.map(x => ({ chunk_text: x.chunk_text, source_name: x.source_name, source_type: x.source_type }));
   const fb = await pool.query(
-    `SELECT chunk_text FROM kb_chunks WHERE business_id = $1 ORDER BY position LIMIT $2`,
+    `SELECT c.chunk_text, s.source_name, s.source_type
+     FROM kb_chunks c JOIN kb_sources s ON s.id = c.source_id
+     WHERE c.business_id = $1 ORDER BY c.position LIMIT $2`,
     [businessId, limit]
   );
-  return fb.rows.map(x => x.chunk_text);
+  return fb.rows.map(x => ({ chunk_text: x.chunk_text, source_name: x.source_name, source_type: x.source_type }));
 }
 
 async function totalCharsForBusiness(businessId) {
@@ -110,12 +115,20 @@ async function totalCharsForBusiness(businessId) {
   return parseInt(r.rows[0].total, 10);
 }
 
+// Returns [{ chunk_text, source_name, source_type }]
 async function getAllChunks(businessId) {
   const r = await pool.query(
-    `SELECT chunk_text FROM kb_chunks WHERE business_id = $1 ORDER BY source_id, position`,
+    `SELECT c.chunk_text, s.source_name, s.source_type
+     FROM kb_chunks c JOIN kb_sources s ON s.id = c.source_id
+     WHERE c.business_id = $1 ORDER BY c.source_id, c.position`,
     [businessId]
   );
-  return r.rows.map(x => x.chunk_text);
+  return r.rows.map(x => ({ chunk_text: x.chunk_text, source_name: x.source_name, source_type: x.source_type }));
 }
 
-module.exports = { init, addSource, listSources, deleteSource, search, totalCharsForBusiness, getAllChunks };
+async function countChunks(businessId) {
+  const r = await pool.query('SELECT COUNT(*) AS c FROM kb_chunks WHERE business_id = $1', [businessId]);
+  return parseInt(r.rows[0].c, 10);
+}
+
+module.exports = { init, addSource, listSources, deleteSource, search, totalCharsForBusiness, getAllChunks, countChunks };
