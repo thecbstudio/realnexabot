@@ -12,6 +12,8 @@ const Anthropic  = require('@anthropic-ai/sdk');
 const path       = require('path');
 const db         = require('./db');
 const kb         = require('./kb');
+const crawler    = require('./crawler');
+const whatsapp   = require('./whatsapp');
 const multer     = require('multer');
 const pdfParse   = require('pdf-parse');
 const cheerio    = require('cheerio');
@@ -225,6 +227,8 @@ function buildSystemPrompt(biz) {
 
   lines.push('');
   lines.push('ABSOLUTE FINAL RULE: Respond in the EXACT same language the customer uses. ANY language → reply in that language.');
+  lines.push('');
+  lines.push('CITATIONS RULE: Knowledge base bilgisi kullanirsan, cevabinin EN SONUNA tek satirda su formatta ekle: [CITE:kaynak1|kaynak2] (max 2 kaynak). Kullanmadiysan ekleme.');
 
   return lines.join('\n');
 }
@@ -352,6 +356,114 @@ app.get('/api/analytics', requireAdmin, async (_req, res) => {
 
 
 
+
+/* --- WEBSITE CRAWLER --- */
+app.post('/api/kb/crawl/:businessId', requireAdmin, async (req, res) => {
+  try {
+    const { startUrl, maxPages } = req.body || {};
+    if (!startUrl || !/^https?:\/\//.test(startUrl)) return res.status(400).json({ error: 'Valid startUrl required' });
+    const pages = await crawler.crawlSite(startUrl, { maxPages });
+    let totalChunks = 0;
+    for (const p of pages) {
+      const result = await kb.addSource(req.params.businessId, 'url', p.url, p.text);
+      if (result) totalChunks += result.chunkCount;
+    }
+    res.json({ ok: true, pages: pages.length, totalChunks, urls: pages.map(p => p.url) });
+  } catch (e) {
+    console.error('[crawl]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/* --- TEST BOT PANEL ROUTES --- */
+app.get('/admin/test', (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'admin', 'test.html'));
+});
+
+app.get('/admin/whatsapp-setup', (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'admin', 'whatsapp-setup.html'));
+});
+
+/* --- KB STATS (for test panel) --- */
+app.get('/api/kb-stats/:businessId', requireAdmin, async (req, res) => {
+  const chars = await kb.totalCharsForBusiness(req.params.businessId);
+  const chunks = await kb.countChunks(req.params.businessId);
+  res.json({ chars, chunks });
+});
+
+/* --- WHATSAPP WEBHOOK --- */
+app.get('/api/webhook/whatsapp/:businessId', async (req, res) => {
+  const biz = await db.getBusiness(req.params.businessId);
+  if (!biz) return res.status(404).send('Not found');
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  if (mode === 'subscribe' && token === biz.whatsapp_verify_token) {
+    return res.status(200).send(challenge);
+  }
+  res.status(403).send('Forbidden');
+});
+
+app.post('/api/webhook/whatsapp/:businessId', express.raw({ type: 'application/json', limit: '1mb' }), async (req, res) => {
+  try {
+    const biz = await db.getBusiness(req.params.businessId);
+    if (!biz) return res.status(404).send('Not found');
+    const body = JSON.parse(req.body.toString('utf8'));
+    const sig = req.headers['x-hub-signature-256'];
+    if (biz.whatsapp_app_secret && !whatsapp.verifySignature(req.body, sig, biz.whatsapp_app_secret)) {
+      return res.status(401).send('Bad signature');
+    }
+    res.status(200).send('OK');
+
+    const incoming = whatsapp.parseIncoming(body);
+    if (!incoming || !incoming.text) return;
+    if (!biz.whatsapp_access_token) return;
+
+    const sessionId = 'wa_' + incoming.from + '_' + req.params.businessId;
+    const conv = await db.getConversation(sessionId);
+    const isNewSession = !conv;
+    const history = conv ? conv.messages : [];
+
+    let systemPrompt = buildSystemPrompt(biz);
+    try {
+      const totalChars = await kb.totalCharsForBusiness(req.params.businessId);
+      let kbChunks = [];
+      if (totalChars > 0 && totalChars < 40000) kbChunks = await kb.getAllChunks(req.params.businessId);
+      else if (totalChars >= 40000) kbChunks = await kb.search(req.params.businessId, incoming.text, 6);
+      if (kbChunks.length) {
+        const kbBlock = kbChunks.map(function(ch){return '[KAYNAK: ' + ch.source_name + ']\n' + ch.chunk_text;}).join('\n---\n');
+        systemPrompt += '\n\n=== KNOWLEDGE BASE ===\n' + kbBlock + '\n=== END ===';
+      }
+    } catch (e) { console.error('[wa kb]', e.message); }
+
+    let reply = '';
+    try {
+      const response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [...history, { role: 'user', content: incoming.text }],
+      });
+      reply = response.content?.[0]?.text || '';
+    } catch (e) {
+      console.error('[wa claude]', e.message);
+      reply = fallbackReply(incoming.text, biz);
+    }
+    reply = reply.replace(/\[CITE:[^\]]+\]\s*$/, '').trim();
+
+    const newHistory = [...history, { role: 'user', content: incoming.text }, { role: 'assistant', content: reply }];
+    const trimmed = newHistory.length > 40 ? newHistory.slice(newHistory.length - 40) : newHistory;
+    await db.saveConversation(sessionId, req.params.businessId, trimmed);
+    await db.trackMessage(req.params.businessId, isNewSession);
+
+    try {
+      await whatsapp.sendMessage(biz.whatsapp_phone_number_id, biz.whatsapp_access_token, incoming.from, reply);
+    } catch (e) { console.error('[wa send]', e.message); }
+  } catch (e) {
+    console.error('[whatsapp webhook]', e.message);
+  }
+});
+
 /* --- ONE-TIME MIGRATION FROM JSON --- */
 app.post('/api/admin/migrate-json', requireAdmin, async (req, res) => {
   try {
@@ -473,7 +585,8 @@ app.post('/api/chat', chatRateLimit, async (req, res) => {
       kbChunks = await kb.search(bizId, message.trim(), 6);
     }
     if (kbChunks.length) {
-      systemPrompt += "\n\n=== KNOWLEDGE BASE (Bu bilgileri kullanarak cevap ver) ===\n" + kbChunks.join("\n---\n") + "\n=== END KNOWLEDGE BASE ===";
+      const kbBlock = kbChunks.map(function(ch){return "[KAYNAK: " + ch.source_name + "]\n" + ch.chunk_text;}).join("\n---\n");
+      systemPrompt += "\n\n=== KNOWLEDGE BASE (Bu bilgileri kullanarak cevap ver) ===\n" + kbBlock + "\n=== END KNOWLEDGE BASE ===";
     }
   } catch (kbErr) { console.error('[kb retrieve]', kbErr.message); }
 
@@ -491,6 +604,14 @@ app.post('/api/chat', chatRateLimit, async (req, res) => {
     reply = fallbackReply(message, biz);
   }
 
+
+  // Citations: extract [CITE:src1|src2] from end of reply
+  let citations = [];
+  const citeMatch = reply.match(/\[CITE:([^\]]+)\]\s*$/);
+  if (citeMatch) {
+    citations = citeMatch[1].split('|').map(function(s){return s.trim();}).filter(Boolean).slice(0,2);
+    reply = reply.replace(/\[CITE:[^\]]+\]\s*$/, '').trim();
+  }
   const newHistory = [...history, { role: 'user', content: message.trim() }, { role: 'assistant', content: reply }];
   const trimmed = newHistory.length > 40 ? newHistory.slice(newHistory.length - 40) : newHistory;
   await db.saveConversation(sessionId, bizId, trimmed);
@@ -530,7 +651,7 @@ app.post('/api/chat', chatRateLimit, async (req, res) => {
   if (isLead(message)) await db.saveLead(bizId, sessionId, message.trim());
   await db.trackMessage(bizId, isNewSession);
 
-  res.json({ reply, sessionId });
+  res.json({ reply, sessionId, citations });
 });
 
 /* ─── PERIYODIK GÖREV ───────────────────────────────────────────────────── */
