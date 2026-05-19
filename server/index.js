@@ -431,13 +431,13 @@ app.post('/api/chat', chatRateLimit, async (req, res) => {
       kbChunks = await kb.search(bizId, message.trim(), 6);
     }
     if (kbChunks.length) {
-      systemPrompt += '
+      systemPrompt += "
 
 === KNOWLEDGE BASE (Bu bilgileri kullanarak cevap ver) ===
-' + kbChunks.join('
+" + kbChunks.join("
 ---
-') + '
-=== END KNOWLEDGE BASE ===';
+") + "
+=== END KNOWLEDGE BASE ===";
     }
   } catch (kbErr) { console.error('[kb retrieve]', kbErr.message); }
 
