@@ -201,6 +201,9 @@ body {
 }
 .send-btn:hover { background: var(--gold-light); transform: scale(1.04); }
 .send-btn:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+.citations{font-size:11px;color:#C9A84C;opacity:.8;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.citations .src{background:rgba(201,168,76,.1);padding:2px 8px;border-radius:8px;border:1px solid rgba(201,168,76,.3);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -258,13 +261,23 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function appendMessage(role, text) {
+function appendMessage(role, text, citations) {
   const msgs = document.getElementById('messages');
   const now  = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const div  = document.createElement('div');
   div.className = 'msg ' + role;
   const formatted = esc(text).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  div.innerHTML = `<div class="bubble">${formatted}</div><div class="msg-time">${now}</div>`;
+  let citeHtml = '';
+  if (citations && citations.length) {
+    const items = citations.map(s => {
+      const isUrl = /^https?:\/\//.test(s);
+      const icon = isUrl ? '🌐' : (s.toLowerCase().endsWith('.pdf') ? '📄' : '📝');
+      const label = isUrl ? new URL(s).hostname : s;
+      return `<span class="src">${icon} ${esc(label)}</span>`;
+    }).join('');
+    citeHtml = `<div class="citations">${items}</div>`;
+  }
+  div.innerHTML = `<div class="bubble">${formatted}</div>${citeHtml}<div class="msg-time">${now}</div>`;
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
 }
@@ -314,7 +327,7 @@ async function sendText(text) {
     sessionId = data.sessionId;
     localStorage.setItem('nxbt_sid_' + businessId, sessionId);
     removeTyping();
-    appendMessage('bot', data.reply);
+    appendMessage('bot', data.reply, data.citations);
     if (data.quickReplies && data.quickReplies.length) showQuickReplies(data.quickReplies);
   } catch(e) {
     removeTyping();
