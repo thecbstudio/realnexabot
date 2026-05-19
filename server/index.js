@@ -246,6 +246,10 @@ function isLead(message) { return LEAD_PATTERN.test(message); }
 /* ─── PAGE ROUTES ───────────────────────────────────────────────────────── */
 // Landing page (public/index.html served automatically by express.static)
 
+app.get('/admin/kb', (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'admin', 'kb.html'));
+});
+
 app.get('/admin', (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'admin', 'index.html'));
 });
