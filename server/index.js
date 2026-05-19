@@ -11,6 +11,12 @@ const { v4: uuidv4 } = require('uuid');
 const Anthropic  = require('@anthropic-ai/sdk');
 const path       = require('path');
 const db         = require('./db');
+const kb         = require('./kb');
+const multer     = require('multer');
+const pdfParse   = require('pdf-parse');
+const cheerio    = require('cheerio');
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -339,6 +345,57 @@ app.get('/api/analytics', requireAdmin, async (_req, res) => {
   res.json(rows.map(r => ({ ...r, businessName: bizMap[r.businessId] || r.businessId })));
 });
 
+
+/* --- KNOWLEDGE BASE (RAG) --- */
+app.post('/api/kb/upload-pdf/:businessId', requireAdmin, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const data = await pdfParse(req.file.buffer);
+    const result = await kb.addSource(req.params.businessId, 'pdf', req.file.originalname, data.text || '');
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    console.error('[kb pdf]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/kb/upload-url/:businessId', requireAdmin, async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url || !/^https?:\/\//.test(url)) return res.status(400).json({ error: 'Valid URL required' });
+    const r = await fetch(url, { headers: { 'User-Agent': 'NexaBot KB/1.0' } });
+    if (!r.ok) return res.status(400).json({ error: `Fetch failed: ${r.status}` });
+    const html = await r.text();
+    const $ = cheerio.load(html);
+    $('script,style,nav,footer,header,noscript').remove();
+    const text = $('body').text().replace(/\s+/g, ' ').trim();
+    if (!text) return res.status(400).json({ error: 'No content extracted' });
+    const result = await kb.addSource(req.params.businessId, 'url', url, text);
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    console.error('[kb url]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/kb/upload-text/:businessId', requireAdmin, async (req, res) => {
+  try {
+    const { text, name } = req.body || {};
+    if (!text || !text.trim()) return res.status(400).json({ error: 'Text required' });
+    const result = await kb.addSource(req.params.businessId, 'text', name || 'Manual', text);
+    res.json({ ok: true, ...result });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/kb/:businessId', requireAdmin, async (req, res) => {
+  res.json(await kb.listSources(req.params.businessId));
+});
+
+app.delete('/api/kb/source/:sourceId/:businessId', requireAdmin, async (req, res) => {
+  await kb.deleteSource(req.params.sourceId, req.params.businessId);
+  res.json({ ok: true });
+});
+
 /* ─── CHAT ──────────────────────────────────────────────────────────────── */
 app.post('/api/chat', chatRateLimit, async (req, res) => {
   const { businessId, sessionId: incomingSession, message } = req.body || {};
@@ -358,7 +415,27 @@ app.post('/api/chat', chatRateLimit, async (req, res) => {
   const isNewSession = !conv;
   const history      = conv ? conv.messages : [];
 
-  const systemPrompt = buildSystemPrompt(biz);
+  let systemPrompt = buildSystemPrompt(biz);
+
+  // RAG: inject relevant KB chunks
+  try {
+    const totalChars = await kb.totalCharsForBusiness(bizId);
+    let kbChunks = [];
+    if (totalChars > 0 && totalChars < 40000) {
+      kbChunks = await kb.getAllChunks(bizId);
+    } else if (totalChars >= 40000) {
+      kbChunks = await kb.search(bizId, message.trim(), 6);
+    }
+    if (kbChunks.length) {
+      systemPrompt += '
+
+=== KNOWLEDGE BASE (Bu bilgileri kullanarak cevap ver) ===
+' + kbChunks.join('
+---
+') + '
+=== END KNOWLEDGE BASE ===';
+    }
+  } catch (kbErr) { console.error('[kb retrieve]', kbErr.message); }
 
   let reply = '';
   try {
@@ -423,6 +500,7 @@ setInterval(() => { db.pruneOldConversations(); }, 60 * 60 * 1000);
 async function startServer() {
   try {
     await db.init();
+    await kb.init();
     if (adminPasswordHash && !adminPasswordHash.startsWith('$2')) {
       console.warn('[warn] ADMIN_PASSWORD plaintext - hashing on startup...');
       adminPasswordHash = await bcrypt.hash(adminPasswordHash, 10);
