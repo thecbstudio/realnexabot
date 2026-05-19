@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Analytics — NexaBot Admin</title>
+<style>
+:root{--bg:#0d0d0d;--surface:#161616;--surface2:#1a1a1a;--border:#262626;--gold:#C9A84C;--text:#e8e8e8;--muted:#888}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px}
+.wrap{max-width:1200px;margin:0 auto}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:14px}
+.head h1{font-size:24px;color:var(--gold)}
+.nav{display:flex;gap:14px;font-size:13px}
+.nav a{color:var(--muted);text-decoration:none}
+.nav a:hover{color:var(--text)}
+select,button{font:inherit;color:var(--text);background:#0a0a0a;border:1px solid var(--border);border-radius:8px;padding:10px 14px;outline:none}
+button{background:var(--gold);color:#000;border:none;font-weight:600;cursor:pointer}
+button:hover{opacity:.9}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
+.card .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.card .val{font-size:28px;font-weight:700;color:var(--gold);margin-top:6px}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px}
+.chart-card h2{font-size:16px;margin-bottom:18px}
+canvas{max-height:300px}
+.controls{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>📊 Analytics</h1>
+    <div class="nav">
+      <a href="/admin">Admin</a> ·
+      <a href="/admin/test">Test Bot</a> ·
+      <a href="/admin/kb">Bilgi Tabanı</a> ·
+      <a href="/admin/conversations">Konuşmalar</a> ·
+      <a href="/admin/customize">Özelleştirme</a>
+    </div>
+  </div>
+
+  <div class="controls">
+    <select id="bizSelect" onchange="loadAll()"></select>
+    <select id="rangeSelect" onchange="loadAll()">
+      <option value="7">Son 7 gün</option>
+      <option value="30" selected>Son 30 gün</option>
+      <option value="90">Son 90 gün</option>
+    </select>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="label">Toplam Mesaj</div><div class="val" id="totalMsg">—</div></div>
+    <div class="card"><div class="label">Toplam Oturum</div><div class="val" id="totalSes">—</div></div>
+    <div class="card"><div class="label">Yeni Leadler</div><div class="val" id="totalLeads">—</div></div>
+    <div class="card"><div class="label">Ortalama Mesaj/Oturum</div><div class="val" id="avgMsg">—</div></div>
+  </div>
+
+  <div class="chart-card">
+    <h2>Günlük Aktivite</h2>
+    <canvas id="dailyChart"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <h2>Lead Trendi</h2>
+    <canvas id="leadChart"></canvas>
+  </div>
+</div>
+
+<script>
+const TOKEN = localStorage.getItem('nexa_admin_token');
+if (!TOKEN) { alert('Önce admin\'den giriş yap'); location.href='/admin'; }
+const api = (p) => fetch(p, { headers: { 'Authorization': 'Bearer ' + TOKEN } }).then(r => r.json());
+let dailyChart, leadChart;
+const colorGold = '#C9A84C', colorMuted = 'rgba(201,168,76,0.15)';
+
+async function loadBusinesses() {
+  const bs = await api('/api/businesses');
+  document.getElementById('bizSelect').innerHTML = bs.map(b => `<option value="${b.id}">${b.name || b.id}</option>`).join('');
+  if (bs.length) loadAll();
+}
+
+async function loadAll() {
+  const bizId = document.getElementById('bizSelect').value;
+  const days = document.getElementById('rangeSelect').value;
+  if (!bizId) return;
+
+  const stats = await api('/api/analytics-daily/' + bizId + '?days=' + days);
+  const convs = stats.conversations || [];
+  const leads = stats.leads || [];
+
+  const totalMsg = convs.reduce((s, x) => s + parseInt(x.messages || 0), 0);
+  const totalSes = convs.reduce((s, x) => s + parseInt(x.sessions || 0), 0);
+  const totalLeads = leads.reduce((s, x) => s + parseInt(x.count || 0), 0);
+  document.getElementById('totalMsg').textContent = totalMsg;
+  document.getElementById('totalSes').textContent = totalSes;
+  document.getElementById('totalLeads').textContent = totalLeads;
+  document.getElementById('avgMsg').textContent = totalSes ? (totalMsg / totalSes).toFixed(1) : '0';
+
+  // Build day series
+  const labels = []; const msgData = []; const sesData = []; const leadData = [];
+  const today = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    labels.push(d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' }));
+    const conv = convs.find(x => x.day === key);
+    msgData.push(conv ? parseInt(conv.messages) : 0);
+    sesData.push(conv ? parseInt(conv.sessions) : 0);
+    const ld = leads.find(x => x.day === key);
+    leadData.push(ld ? parseInt(ld.count) : 0);
+  }
+
+  const opts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#888' } } },
+    scales: {
+      x: { ticks: { color: '#888' }, grid: { color: '#222' } },
+      y: { ticks: { color: '#888' }, grid: { color: '#222' }, beginAtZero: true }
+    }
+  };
+  if (dailyChart) dailyChart.destroy();
+  dailyChart = new Chart(document.getElementById('dailyChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Mesaj', data: msgData, borderColor: colorGold, backgroundColor: colorMuted, tension: 0.3, fill: true },
+        { label: 'Oturum', data: sesData, borderColor: '#888', backgroundColor: 'rgba(136,136,136,0.1)', tension: 0.3, fill: true }
+      ]
+    },
+    options: opts
+  });
+  if (leadChart) leadChart.destroy();
+  leadChart = new Chart(document.getElementById('leadChart'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Lead', data: leadData, backgroundColor: colorGold }] },
+    options: opts
+  });
+}
+
+loadBusinesses();
+</script>
+</body></html>
