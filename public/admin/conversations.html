@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Konuşmalar — NexaBot Admin</title>
+<style>
+:root{--bg:#0d0d0d;--surface:#161616;--surface2:#1a1a1a;--border:#262626;--gold:#C9A84C;--text:#e8e8e8;--muted:#888}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px}
+.wrap{max-width:1200px;margin:0 auto}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:14px}
+.head h1{font-size:24px;color:var(--gold)}
+.nav{display:flex;gap:14px;font-size:13px}
+.nav a{color:var(--muted);text-decoration:none}.nav a:hover{color:var(--text)}
+.controls{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+select,input,button{font:inherit;color:var(--text);background:#0a0a0a;border:1px solid var(--border);border-radius:8px;padding:10px 14px;outline:none}
+button{background:var(--gold);color:#000;border:none;font-weight:600;cursor:pointer}
+button.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+input{flex:1;min-width:200px}
+.layout{display:grid;grid-template-columns:380px 1fr;gap:20px}
+.list{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;max-height:78vh;overflow-y:auto}
+.row{padding:12px 14px;border:1px solid transparent;border-radius:8px;cursor:pointer;margin-bottom:6px;transition:all .15s}
+.row:hover{background:var(--surface2)}
+.row.active{background:var(--surface2);border-color:var(--gold)}
+.row .top{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px}
+.row .preview{font-size:13px;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;max-height:78vh;overflow-y:auto}
+.empty{text-align:center;color:var(--muted);padding:40px}
+.msg{padding:10px 14px;border-radius:10px;margin:8px 0;max-width:80%;font-size:14px;line-height:1.5}
+.msg.user{background:var(--gold);color:#000;margin-left:auto;border-bottom-right-radius:4px}
+.msg.assistant,.msg.bot{background:#0a0a0a;border:1px solid var(--border);border-bottom-left-radius:4px}
+@media(max-width:900px){.layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>💬 Konuşmalar</h1>
+    <div class="nav">
+      <a href="/admin">Admin</a> · <a href="/admin/analytics">Analytics</a> · <a href="/admin/test">Test</a> · <a href="/admin/kb">Bilgi Tabanı</a>
+    </div>
+  </div>
+
+  <div class="controls">
+    <select id="bizSelect" onchange="loadConvs()"></select>
+    <input id="search" placeholder="🔍 İçerikte ara..." oninput="filterList()">
+    <button onclick="exportCSV()">⬇ CSV Olarak İndir</button>
+  </div>
+
+  <div class="layout">
+    <div class="list" id="list"><div class="empty">Yükleniyor...</div></div>
+    <div class="viewer" id="viewer"><div class="empty">Sol panelden bir konuşma seç</div></div>
+  </div>
+</div>
+
+<script>
+const TOKEN = localStorage.getItem('nexa_admin_token');
+if (!TOKEN) { alert('Önce admin\'den giriş yap'); location.href='/admin'; }
+const $ = id => document.getElementById(id);
+const api = p => fetch(p, { headers: { 'Authorization': 'Bearer ' + TOKEN } }).then(r => r.json());
+let allConvs = [];
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function loadBusinesses() {
+  const bs = await api('/api/businesses');
+  $('bizSelect').innerHTML = bs.map(b => `<option value="${b.id}">${b.name || b.id}</option>`).join('');
+  if (bs.length) loadConvs();
+}
+
+async function loadConvs() {
+  const bizId = $('bizSelect').value;
+  const summaries = await api('/api/conversations');
+  allConvs = summaries.filter(c => c.businessId === bizId);
+  renderList(allConvs);
+}
+
+function renderList(arr) {
+  if (!arr.length) { $('list').innerHTML = '<div class="empty">Konuşma yok</div>'; return; }
+  $('list').innerHTML = arr.map(c => `
+    <div class="row" onclick="openConv('${c.sessionId}', event)">
+      <div class="top"><span>${esc(c.sessionId.slice(0,16))}</span><span>${c.msgCount} msg · ${new Date(parseInt(c.lastTs)).toLocaleDateString('tr-TR')}</span></div>
+      <div class="preview">${esc(c.lastMessage)}</div>
+    </div>
+  `).join('');
+}
+
+function filterList() {
+  const q = $('search').value.toLowerCase();
+  if (!q) { renderList(allConvs); return; }
+  renderList(allConvs.filter(c => (c.lastMessage || '').toLowerCase().includes(q) || c.sessionId.toLowerCase().includes(q)));
+}
+
+async function openConv(sid, ev) {
+  document.querySelectorAll('.row').forEach(r => r.classList.remove('active'));
+  if (ev) ev.currentTarget.classList.add('active');
+  $('viewer').innerHTML = '<div class="empty">Yükleniyor...</div>';
+  const conv = await api('/api/conversation/' + sid);
+  if (conv.error) { $('viewer').innerHTML = `<div class="empty">Hata: ${conv.error}</div>`; return; }
+  const msgs = Array.isArray(conv.messages) ? conv.messages : [];
+  $('viewer').innerHTML = `
+    <div style="margin-bottom:14px;font-size:12px;color:var(--muted)">Session: <b style="color:var(--text)">${esc(sid)}</b> · ${msgs.length} mesaj</div>
+    ${msgs.map(m => `<div class="msg ${esc(m.role)}">${esc(m.content)}</div>`).join('')}
+  `;
+}
+
+async function exportCSV() {
+  const bizId = $('bizSelect').value;
+  const r = await fetch('/api/conversations/export/' + bizId, { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `conversations-${bizId}-${Date.now()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+loadBusinesses();
+</script>
+</body></html>
