@@ -246,6 +246,8 @@ async function loadBusiness() {
       business = await r.json();
       document.getElementById('botName').textContent   = business.bot_name || business.name || 'NexaBot';
       document.getElementById('botAvatar').textContent = business.emoji || '🤖';
+      if (business.widget_color) document.documentElement.style.setProperty('--gold', business.widget_color);
+      if (business.widget_bg) document.documentElement.style.setProperty('--bg', business.widget_bg);
     }
   } catch(e) {}
   initChat();
