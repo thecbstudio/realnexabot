@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NexaBot — Isletmeniz Icin AI Musteri Asistani</title>
+<meta name="description" content="7/24 musteri sorularini yanitlayan, randevu alan, satis yapan AI chatbot.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0d0d;--surface:#111;--surface2:#161616;--border:#262626;--gold:#C9A84C;--text:#e8e8e8;--muted:#888}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+h1,h2,h3{font-family:'Syne',sans-serif;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+nav{position:sticky;top:0;z-index:100;background:rgba(13,13,13,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+.logo{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--gold)}
+.logo span{color:var(--text)}
+.nav-links{display:flex;gap:28px;align-items:center}
+.nav-links a{color:var(--muted);font-size:14px;transition:color .2s}
+.nav-links a:hover{color:var(--text)}
+.btn{display:inline-block;padding:12px 22px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;border:none;transition:all .2s;font-family:inherit}
+.btn-primary{background:var(--gold);color:#000}
+.btn-primary:hover{background:#d9b85a;transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--gold)}
+.hero{padding:80px 0 60px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-50%;left:50%;width:1000px;height:1000px;background:radial-gradient(circle,rgba(201,168,76,.08),transparent 60%);transform:translateX(-50%);pointer-events:none}
+.hero .wrap{display:grid;grid-template-columns:1.1fr 1fr;gap:60px;align-items:center;position:relative}
+.hero-text h1{font-size:clamp(36px,5vw,56px);margin-bottom:20px}
+.hero-text h1 .gold{color:var(--gold)}
+.hero-text p{font-size:18px;color:var(--muted);margin-bottom:32px;max-width:520px}
+.hero-cta{display:flex;gap:12px;flex-wrap:wrap}
+.demo-frame{background:var(--surface);border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.demo-frame-top{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:6px;background:#0a0a0a}
+.demo-frame-top span{width:10px;height:10px;border-radius:50%;background:#333}
+.demo-frame iframe{display:block;width:100%;height:560px;border:0;background:#0a0a0a}
+.section{padding:80px 0}
+.section h2{font-size:clamp(28px,3.5vw,42px);text-align:center;margin-bottom:14px}
+.section .lead{text-align:center;color:var(--muted);max-width:600px;margin:0 auto 56px;font-size:17px}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.feature{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;transition:all .2s}
+.feature:hover{border-color:var(--gold);transform:translateY(-3px)}
+.feature .icon{font-size:32px;margin-bottom:14px}
+.feature h3{font-size:18px;margin-bottom:8px}
+.feature p{color:var(--muted);font-size:14px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:40px}
+.step{text-align:center;padding:20px}
+.step-num{width:56px;height:56px;border-radius:50%;background:var(--gold);color:#000;font-family:'Syne',sans-serif;font-size:24px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.step h3{font-size:18px;margin-bottom:8px}
+.step p{color:var(--muted);font-size:14px}
+.pricing{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-top:40px}
+.plan{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px;position:relative;transition:all .2s}
+.plan.featured{border-color:var(--gold);transform:scale(1.03)}
+.plan.featured::before{content:'POPULER';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--gold);color:#000;font-size:11px;font-weight:700;padding:4px 12px;border-radius:999px;letter-spacing:.05em}
+.plan h3{font-size:20px;margin-bottom:6px}
+.plan .price{font-family:'Syne',sans-serif;font-size:40px;font-weight:800;color:var(--gold);margin:12px 0}
+.plan .price small{font-size:14px;color:var(--muted);font-weight:400}
+.plan ul{list-style:none;margin:24px 0}
+.plan li{padding:8px 0;color:var(--muted);font-size:14px;display:flex;gap:8px}
+.plan li::before{content:'✓';color:var(--gold);font-weight:700}
+.plan .btn{width:100%;text-align:center}
+.cta{background:var(--surface2);padding:80px 24px;border-radius:20px;text-align:center;margin:40px 0;border:1px solid var(--border)}
+.cta h2{margin-bottom:16px}
+.cta p{color:var(--muted);font-size:17px;max-width:540px;margin:0 auto 28px}
+footer{border-top:1px solid var(--border);padding:40px 0;margin-top:40px;text-align:center;color:var(--muted);font-size:13px}
+footer a{margin:0 12px;color:var(--muted);transition:color .2s}
+footer a:hover{color:var(--gold)}
+@media(max-width:900px){.hero .wrap{grid-template-columns:1fr;gap:40px}.steps{grid-template-columns:1fr}.plan.featured{transform:none}}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <div class="logo">Nexa<span>Bot</span></div>
+  <div class="nav-links">
+    <a href="#ozellikler">Ozellikler</a>
+    <a href="#nasil">Nasil Calisir</a>
+    <a href="#fiyatlar">Fiyatlar</a>
+    <a href="/admin" class="btn btn-ghost" style="padding:8px 16px">Giris</a>
+    <a href="#fiyatlar" class="btn btn-primary" style="padding:8px 16px">Ucretsiz Dene</a>
+  </div>
+</div></nav>
+
+<section class="hero"><div class="wrap">
+  <div class="hero-text">
+    <h1>Isletmenize ozel <span class="gold">AI musteri asistani</span></h1>
+    <p>NexaBot, web sitenize 5 dakikada eklenen yapay zekali chatbot'tur. 7/24 musteri sorularini yanitlar, randevu alir, lead toplar.</p>
+    <div class="hero-cta">
+      <a href="#fiyatlar" class="btn btn-primary">14 Gun Ucretsiz Dene</a>
+      <a href="#nasil" class="btn btn-ghost">Nasil Calisiyor?</a>
+    </div>
+  </div>
+  <div class="demo-frame">
+    <div class="demo-frame-top"><span></span><span></span><span></span></div>
+    <iframe src="/widget/831fe080-fa9f-4efb-bce5-93c7a0d8eb40" loading="lazy"></iframe>
+  </div>
+</div></section>
+
+<section class="section" id="ozellikler"><div class="wrap">
+  <h2>Profesyonel musteri hizmetleri, <span style="color:var(--gold)">otomatik</span></h2>
+  <p class="lead">Her ozellik, musterinizin sizden satin alma yolculugunu hizlandirmak icin tasarlandi.</p>
+  <div class="features">
+    <div class="feature"><div class="icon">🧠</div><h3>Kendi Verinizle Egitim</h3><p>PDF, web sitesi veya SSS metinlerinizi yukleyin — bot tum bilgilerinizi ogrensin.</p></div>
+    <div class="feature"><div class="icon">🌍</div><h3>Cok Dilli</h3><p>Musteri hangi dilde yazarsa o dilde cevap. TR, EN, RU, AR ve dahasi.</p></div>
+    <div class="feature"><div class="icon">📅</div><h3>Otomatik Randevu</h3><p>Tarih, saat ve hizmet bilgisini toplar, size e-posta gonderir.</p></div>
+    <div class="feature"><div class="icon">📊</div><h3>Lead Yakalama</h3><p>Fiyat soran her musteriyi kaydeder. Admin panelden gorun.</p></div>
+    <div class="feature"><div class="icon">🎨</div><h3>Kendi Markaniz</h3><p>Logo, renk, bot adi — her sey sizin isletmenize ozgu.</p></div>
+    <div class="feature"><div class="icon">⚡</div><h3>5 Dakikada Kurulum</h3><p>Tek satir kodu sitenize yapistirin. Hosting, sunucu yok.</p></div>
+  </div>
+</div></section>
+
+<section class="section" id="nasil" style="background:var(--surface2)"><div class="wrap">
+  <h2>3 adimda hazir</h2>
+  <p class="lead">Karmasik degil. Musteri dakikalar icinde aktif.</p>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><h3>Bilgilerinizi Girin</h3><p>Isletme bilgileri, saatler, fiyatlar, SSS — panelden.</p></div>
+    <div class="step"><div class="step-num">2</div><h3>Dosyalarinizi Yukleyin</h3><p>Menu PDF'i, hizmet listesi, web siteniz — bot ogrenir.</p></div>
+    <div class="step"><div class="step-num">3</div><h3>Sitenize Ekleyin</h3><p>Tek satir kod. Botunuz canlida, musterilere cevap veriyor.</p></div>
+  </div>
+</div></section>
+
+<section class="section" id="fiyatlar"><div class="wrap">
+  <h2>Seffaf fiyatlandirma</h2>
+  <p class="lead">Abonelik istediginiz zaman iptal. Gizli ucret yok.</p>
+  <div class="pricing">
+    <div class="plan">
+      <h3>Starter</h3>
+      <div class="price">₺290<small>/ay</small></div>
+      <p style="color:var(--muted);font-size:14px">Kucuk isletmeler</p>
+      <ul><li>Ayda 500 mesaj</li><li>1 bot</li><li>Temel ozellestirme</li><li>E-posta destek</li></ul>
+      <a href="mailto:cinarbey007@gmail.com?subject=NexaBot Starter" class="btn btn-ghost">Basla</a>
+    </div>
+    <div class="plan featured">
+      <h3>Pro</h3>
+      <div class="price">₺990<small>/ay</small></div>
+      <p style="color:var(--muted);font-size:14px">Buyuyen isletmeler</p>
+      <ul><li>Ayda 5.000 mesaj</li><li>3 bot</li><li>Knowledge Base</li><li>Randevu otomasyonu</li><li>Oncelikli destek</li></ul>
+      <a href="mailto:cinarbey007@gmail.com?subject=NexaBot Pro" class="btn btn-primary">Basla</a>
+    </div>
+    <div class="plan">
+      <h3>Enterprise</h3>
+      <div class="price">₺2490<small>/ay</small></div>
+      <p style="color:var(--muted);font-size:14px">Yuksek hacim</p>
+      <ul><li>Sinirsiz mesaj</li><li>Sinirsiz bot</li><li>Ozel entegrasyon</li><li>Ozel domain</li><li>Telefon destek</li></ul>
+      <a href="mailto:cinarbey007@gmail.com?subject=NexaBot Enterprise" class="btn btn-ghost">Iletisim</a>
+    </div>
+  </div>
+</div></section>
+
+<div class="wrap"><div class="cta">
+  <h2>Musterilerinizi bekletmeyin</h2>
+  <p>Cogu isletme gelen mesajlarin %40'ini gece kaciriyor. NexaBot uyumaz.</p>
+  <a href="mailto:cinarbey007@gmail.com?subject=NexaBot Demo" class="btn btn-primary">Ucretsiz Demo Iste</a>
+</div></div>
+
+<footer><div class="wrap">
+  <p>© 2026 NexaBot · thecbstudio</p>
+  <p style="margin-top:12px">
+    <a href="/privacy">Gizlilik</a> · <a href="/terms">Kullanim Sartlari</a> · <a href="/kvkk">KVKK</a> · <a href="mailto:cinarbey007@gmail.com">Iletisim</a>
+  </p>
+</div></footer>
+
+</body></html>
