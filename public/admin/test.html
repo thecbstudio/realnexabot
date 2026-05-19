@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Test Bot — NexaBot Admin</title>
+<style>
+:root{--bg:#0d0d0d;--surface:#161616;--surface2:#1a1a1a;--border:#262626;--gold:#C9A84C;--text:#e8e8e8;--muted:#888}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+.wrap{display:grid;grid-template-columns:300px 1fr;height:100vh}
+.side{background:var(--surface);border-right:1px solid var(--border);padding:20px;overflow-y:auto}
+.side h1{font-size:18px;margin-bottom:18px;color:var(--gold)}
+.side label{display:block;font-size:12px;color:var(--muted);margin:14px 0 6px}
+select,input,textarea,button{font:inherit;color:var(--text);background:#0a0a0a;border:1px solid var(--border);border-radius:8px;padding:10px 12px;width:100%;outline:none}
+button{background:var(--gold);color:#000;border:none;font-weight:600;cursor:pointer}
+button.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+button:hover{opacity:.9}
+.stats{margin-top:14px;padding:14px;background:var(--surface2);border-radius:8px;font-size:13px}
+.stats div{margin:4px 0;color:var(--muted)}
+.stats b{color:var(--text)}
+.main{display:flex;flex-direction:column;height:100vh}
+.chat-head{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.chat-head h2{font-size:16px}
+.chat-head .sub{font-size:12px;color:var(--muted)}
+.messages{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px}
+.msg{max-width:75%}
+.msg.user{align-self:flex-end}
+.msg.bot{align-self:flex-start}
+.bubble{padding:10px 14px;border-radius:14px;line-height:1.5;font-size:14px;word-wrap:break-word}
+.msg.user .bubble{background:var(--gold);color:#000;border-bottom-right-radius:4px}
+.msg.bot .bubble{background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:4px}
+.citations{font-size:11px;color:var(--gold);opacity:.8;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.citations .src{background:rgba(201,168,76,.1);padding:2px 8px;border-radius:8px;border:1px solid rgba(201,168,76,.3)}
+.time{font-size:10px;color:var(--muted);margin-top:4px}
+.input-bar{padding:14px 24px;border-top:1px solid var(--border);display:flex;gap:10px}
+.input-bar input{flex:1}
+.input-bar button{width:auto;padding:10px 22px}
+.empty{margin:auto;text-align:center;color:var(--muted)}
+.empty h3{font-size:20px;margin-bottom:8px;color:var(--text)}
+.typing{display:inline-flex;gap:4px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.dot{width:6px;height:6px;background:var(--gold);border-radius:50%;animation:b 1.2s infinite}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+@keyframes b{0%,80%,100%{opacity:.3}40%{opacity:1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="side">
+    <h1>🧪 Bot Test</h1>
+    <label>İşletme</label>
+    <select id="bizSelect" onchange="onBizChange()"></select>
+    <div class="stats" id="stats" style="display:none">
+      <div>Bot: <b id="sBot">-</b></div>
+      <div>Sektör: <b id="sSector">-</b></div>
+      <div>KB parça: <b id="sChunks">-</b></div>
+      <div>KB karakter: <b id="sChars">-</b></div>
+    </div>
+    <div style="height:12px"></div>
+    <button class="ghost" onclick="resetChat()">🔄 Sohbeti Sıfırla</button>
+    <div style="height:24px"></div>
+    <a href="/admin" style="color:var(--muted);text-decoration:none;font-size:13px">← Admin paneline dön</a>
+    <div style="height:12px"></div>
+    <a href="/admin/kb" style="color:var(--muted);text-decoration:none;font-size:13px">🧠 Knowledge Base</a>
+  </aside>
+
+  <main class="main">
+    <div class="chat-head">
+      <div>
+        <h2 id="head">Test Bot</h2>
+        <div class="sub" id="subhead">Bir işletme seç</div>
+      </div>
+    </div>
+    <div class="messages" id="messages">
+      <div class="empty">
+        <h3>Sohbete başla</h3>
+        <p>Sol panelden işletme seç, soru sor — bot'un knowledge base'ini test et.</p>
+      </div>
+    </div>
+    <div class="input-bar">
+      <input id="input" placeholder="Mesaj yaz..." onkeydown="if(event.key==='Enter')send()" disabled>
+      <button id="sendBtn" onclick="send()" disabled>Gönder</button>
+    </div>
+  </main>
+</div>
+
+<script>
+const TOKEN = localStorage.getItem('nexa_admin_token');
+if (!TOKEN) { alert('Önce /admin sayfasından giriş yap'); location.href = '/admin'; }
+
+let sessionId = null;
+let businesses = [];
+
+const $ = id => document.getElementById(id);
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function load() {
+  const r = await fetch('/api/businesses', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+  businesses = await r.json();
+  $('bizSelect').innerHTML = '<option value="">— seç —</option>' + businesses.map(b => `<option value="${b.id}">${esc(b.name || b.id)}</option>`).join('');
+}
+
+async function onBizChange() {
+  const id = $('bizSelect').value;
+  if (!id) { $('stats').style.display = 'none'; $('input').disabled = true; $('sendBtn').disabled = true; return; }
+  const biz = businesses.find(b => b.id === id);
+  $('sBot').textContent = biz.bot_name || biz.name || '—';
+  $('sSector').textContent = biz.sector || '—';
+  $('head').textContent = (biz.emoji || '🤖') + ' ' + (biz.bot_name || biz.name);
+  $('subhead').textContent = biz.name;
+  try {
+    const r = await fetch('/api/kb-stats/' + id, { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    const d = await r.json();
+    $('sChunks').textContent = d.chunks;
+    $('sChars').textContent = (d.chars || 0).toLocaleString('tr-TR');
+  } catch(e) {}
+  $('stats').style.display = 'block';
+  $('input').disabled = false; $('sendBtn').disabled = false;
+  resetChat();
+}
+
+function resetChat() {
+  sessionId = null;
+  $('messages').innerHTML = '<div class="empty"><p style="color:var(--muted)">Yeni sohbet başladı. Sorunu yaz.</p></div>';
+}
+
+function addMsg(role, text, citations) {
+  const msgs = $('messages');
+  if (msgs.querySelector('.empty')) msgs.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  const formatted = esc(text).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  let citeHtml = '';
+  if (citations && citations.length) {
+    const items = citations.map(s => {
+      const isUrl = /^https?:\/\//.test(s);
+      const icon = isUrl ? '🌐' : (s.toLowerCase().endsWith('.pdf') ? '📄' : '📝');
+      const label = isUrl ? new URL(s).hostname : s;
+      return `<span class="src">${icon} ${esc(label)}</span>`;
+    }).join('');
+    citeHtml = `<div class="citations">${items}</div>`;
+  }
+  div.innerHTML = `<div class="bubble">${formatted}</div>${citeHtml}`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function showTyping() {
+  const msgs = $('messages');
+  const t = document.createElement('div');
+  t.id = 'typing';
+  t.className = 'msg bot';
+  t.innerHTML = '<div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+  msgs.appendChild(t);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function hideTyping(){ const t=$('typing'); if(t)t.remove(); }
+
+async function send() {
+  const text = $('input').value.trim();
+  if (!text) return;
+  const bizId = $('bizSelect').value;
+  if (!bizId) return;
+  $('input').value = '';
+  addMsg('user', text);
+  showTyping();
+  try {
+    const r = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ businessId: bizId, sessionId: sessionId || ('test_' + bizId + '_' + Date.now()), message: text })
+    });
+    const d = await r.json();
+    hideTyping();
+    if (d.reply) {
+      sessionId = d.sessionId;
+      addMsg('bot', d.reply, d.citations);
+    } else {
+      addMsg('bot', '⚠️ ' + (d.error || 'Yanıt alınamadı'));
+    }
+  } catch(e) {
+    hideTyping();
+    addMsg('bot', '⚠️ Bağlantı hatası');
+  }
+}
+
+load();
+</script>
+</body></html>
