@@ -45,7 +45,8 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
 <div class="card">
   <div class="tabs">
     <button class="tab active" data-tab="pdf">📄 PDF Yükle</button>
-    <button class="tab" data-tab="url">🌐 Website URL</button>
+    <button class="tab" data-tab="url">🌐 Tek Sayfa URL</button>
+    <button class="tab" data-tab="crawl">🕷️ Tüm Siteyi Çek</button>
     <button class="tab" data-tab="text">✏️ Düz Metin</button>
   </div>
 
@@ -57,6 +58,15 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
   <div class="tab-content" id="tab-url">
     <input id="urlInput" type="url" placeholder="https://siteniz.com/hakkimizda">
     <div style="margin-top:12px"><button onclick="uploadURL()">Web Sayfası Çek</button></div>
+  </div>
+
+  <div class="tab-content" id="tab-crawl">
+    <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Başlangıç URL'i (bot tüm aynı domain sayfalarını çeker)</label>
+    <input id="crawlUrl" type="url" placeholder="https://siteniz.com">
+    <div style="margin:12px 0 8px;font-size:12px;color:var(--muted)">Maksimum sayfa sayısı: <span id="crawlMaxLabel">25</span></div>
+    <input id="crawlMax" type="range" min="10" max="100" step="5" value="25" oninput="document.getElementById('crawlMaxLabel').textContent=this.value" style="width:100%">
+    <div style="margin-top:12px"><button id="crawlBtn" onclick="crawlSite()">🕷️ Siteyi Tara ve Öğrensin</button></div>
+    <div id="crawlStatus" style="margin-top:12px;font-size:13px;color:var(--muted)"></div>
   </div>
 
   <div class="tab-content" id="tab-text">
@@ -158,6 +168,36 @@ async function uploadText() {
   const d = await api(`/api/kb/upload-text/${bizId}`, { method:'POST', body: JSON.stringify({ text, name }) });
   if (d.ok) { toast(`Metin eklendi: ${d.chunkCount} parça`); $('textBody').value=''; $('textName').value=''; loadSources(); }
   else alert('Hata: '+(d.error||'?'));
+}
+
+
+async function crawlSite() {
+  const url = document.getElementById('crawlUrl').value.trim();
+  const maxPages = parseInt(document.getElementById('crawlMax').value);
+  if (!url) return alert('URL gir');
+  const bizId = document.getElementById('bizSelect').value;
+  const btn = document.getElementById('crawlBtn');
+  const status = document.getElementById('crawlStatus');
+  btn.disabled = true; btn.textContent = '⏳ Site taranıyor... (1-3 dakika sürebilir)';
+  status.innerHTML = '<span style="color:var(--gold)">Siteyi tarıyorum. Lütfen bekle...</span>';
+  try {
+    const r = await fetch(`/api/kb/crawl/${bizId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startUrl: url, maxPages })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      status.innerHTML = `<span style="color:#10b981">✓ ${d.pages} sayfa çekildi, ${d.totalChunks} bilgi parçası eklendi.</span>`;
+      document.getElementById('crawlUrl').value = '';
+      loadSources();
+    } else {
+      status.innerHTML = `<span style="color:#dc2626">Hata: ${d.error || 'bilinmiyor'}</span>`;
+    }
+  } catch (e) {
+    status.innerHTML = `<span style="color:#dc2626">Bağlantı hatası: ${e.message}</span>`;
+  }
+  btn.disabled = false; btn.textContent = '🕷️ Siteyi Tara ve Öğrensin';
 }
 
 loadBusinesses();
