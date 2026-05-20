@@ -321,7 +321,7 @@ app.delete('/api/business/:id', requireAdmin, async (req, res) => {
 });
 
 /* ─── PUBLIC: BUSINESS ──────────────────────────────────────────────────── */
-const PUBLIC_FIELDS = ['id','name','emoji','greeting','greeting_en','bot_name','hours_detail','hours','phone','address','services','about','quick_replies','widget_color','widget_bg','widget_position'];
+const PUBLIC_FIELDS = ['id','name','emoji','greeting','greeting_en','bot_name','hours_detail','hours','phone','address','services','about','quick_replies','widget_color','widget_bg','widget_position','avatar_url'];
 
 app.get('/api/business/:id', async (req, res) => {
   const biz = await db.getBusiness(req.params.id);
@@ -559,6 +559,44 @@ app.post('/api/admin/cleanup-orphans', requireAdmin, async (_req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+
+/* --- LEAD STATUS/NOTES UPDATE --- */
+app.patch('/api/lead/:id', requireAdmin, async (req, res) => {
+  try {
+    const { status, notes } = req.body || {};
+    await db.updateLead(req.params.id, status, notes);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/lead/:id', requireAdmin, async (req, res) => {
+  try { await db.deleteLead(req.params.id); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* --- ERROR LOG VIEW --- */
+app.get('/api/admin/errors', requireAdmin, async (req, res) => {
+  try { res.json(await db.getErrors(parseInt(req.query.limit) || 50)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* --- AVATAR / LOGO UPLOAD --- */
+app.post('/api/business/:id/avatar', requireAdmin, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    if (req.file.size > 200 * 1024) return res.status(400).json({ error: 'Max 200KB' });
+    if (!/^image\//.test(req.file.mimetype)) return res.status(400).json({ error: 'Only images' });
+    const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    const biz = await db.getBusiness(req.params.id);
+    if (!biz) return res.status(404).json({ error: 'Not found' });
+    await db.saveBusiness(req.params.id, { ...biz, avatar_url: dataUrl });
+    res.json({ ok: true, size: req.file.size });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* --- NEW ADMIN PAGE: LEADS --- */
+app.get('/admin/leads', (_req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin', 'leads.html')));
+
 /* --- ONE-TIME MIGRATION FROM JSON --- */
 app.post('/api/admin/migrate-json', requireAdmin, async (req, res) => {
   try {
@@ -762,6 +800,17 @@ app.post('/api/chat', chatRateLimit, async (req, res) => {
 setInterval(() => { db.pruneOldConversations(); }, 60 * 60 * 1000);
 
 /* ─── START ─────────────────────────────────────────────────────────────── */
+
+/* --- GLOBAL ERROR HANDLER (log to DB) --- */
+process.on('uncaughtException', err => { console.error('[uncaught]', err); db.logError && db.logError('uncaughtException', err.message, err.stack); });
+process.on('unhandledRejection', err => { console.error('[unhandled]', err); db.logError && db.logError('unhandledRejection', String(err), err && err.stack); });
+app.use((err, req, res, next) => {
+  console.error('[express]', err);
+  if (db.logError) db.logError('express:' + (req.path||''), err.message, err.stack);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'Server error' });
+});
+
 async function startServer() {
   try {
     await db.init();
