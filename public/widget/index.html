@@ -11,12 +11,13 @@
 html, body { height: 100%; overflow: hidden; }
 body {
   font-family: 'DM Sans', sans-serif;
-  background: #0d0d0d;
+  background: var(--bg, #0d0d0d);
   color: #f0f0f0;
   display: flex;
   flex-direction: column;
 }
 :root {
+  --bg: #0d0d0d;
   --gold: #C9A84C;
   --gold-light: #E8C97A;
   --gold-dim: rgba(201,168,76,0.12);
@@ -245,11 +246,13 @@ async function loadBusiness() {
     if (r.ok) {
       business = await r.json();
       document.getElementById('botName').textContent   = business.bot_name || business.name || 'NexaBot';
+      const avEl = document.getElementById('botAvatar');
       if (business.avatar_url) {
-        const av = document.getElementById('botAvatar');
-        av.innerHTML = `<img src="${business.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+        avEl.innerHTML = `<img src="${business.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`;
+        avEl.style.background = 'transparent';
+        avEl.style.padding = '0';
       } else {
-        document.getElementById('botAvatar').textContent = business.emoji || '🤖';
+        avEl.textContent = business.emoji || '🤖';
       }
       if (business.widget_color) document.documentElement.style.setProperty('--gold', business.widget_color);
       if (business.widget_bg) document.documentElement.style.setProperty('--bg', business.widget_bg);
