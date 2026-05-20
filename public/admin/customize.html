@@ -61,6 +61,13 @@ button:hover{opacity:.9}
       <label>Emoji / Avatar</label>
       <input id="emoji" maxlength="4" placeholder="🤖">
 
+      <label>Logo / Avatar Resmi (PNG/JPG, max 200KB) — boşsa emoji kullanılır</label>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px">
+        <div id="avatarPreview" style="width:48px;height:48px;border-radius:50%;background:#0a0a0a;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:24px">🤖</div>
+        <input type="file" id="avatarFile" accept="image/*" style="flex:1">
+        <button type="button" onclick="uploadAvatar()" style="padding:9px 14px">Yükle</button>
+      </div>
+
       <label>Karşılama Mesajı (Türkçe)</label>
       <textarea id="greeting" placeholder="👋 Merhaba! Size nasıl yardımcı olabilirim?"></textarea>
 
@@ -146,6 +153,7 @@ function loadBiz() {
   $('widget_bg_hex').value = currentBiz.widget_bg || '#0d0d0d';
   $('widget_position').value = currentBiz.widget_position || 'bottom-right';
   updatePreview();
+  refreshAvatarPreview();
   updateEmbed();
 }
 
