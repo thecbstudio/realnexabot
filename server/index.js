@@ -276,12 +276,36 @@ app.get('/kvkk', (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'kvkk.html'));
 });
 
-app.get('/embed/:businessId', (req, res) => {
+app.get('/embed/:businessId', async (req, res) => {
   const host = req.headers.host || '';
   if (!/^[a-zA-Z0-9.\-:]+$/.test(host)) return res.status(400).type('application/javascript').send('/* invalid host */');
   const businessId = req.params.businessId;
   const baseUrl = process.env.BASE_URL || `${req.protocol}://${host}`;
-  const script = `(function(){if(window.__nexabot_loaded)return;window.__nexabot_loaded=true;var iframe=document.createElement('iframe');iframe.src='${baseUrl}/widget/${businessId}';iframe.style.cssText='position:fixed;bottom:20px;right:20px;width:380px;height:600px;border:none;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,0.25);z-index:999999;';iframe.allow='clipboard-write';document.body.appendChild(iframe);})();`;
+  let position = 'right:20px';
+  let color = '#C9A84C';
+  let emoji = '💬';
+  try {
+    const biz = await db.getBusiness(businessId);
+    if (biz) {
+      if (biz.widget_position === 'bottom-left') position = 'left:20px';
+      if (biz.widget_color) color = biz.widget_color;
+      if (biz.emoji) emoji = biz.emoji;
+    }
+  } catch (e) {}
+  const script = "(function(){if(window.__nexabot_loaded)return;window.__nexabot_loaded=true;" +
+    "var btn=document.createElement('button');" +
+    "btn.innerHTML=" + JSON.stringify(emoji) + ";" +
+    "btn.style.cssText='position:fixed;bottom:20px;" + position + ";width:60px;height:60px;border-radius:50%;border:none;background:" + color + ";color:#fff;font-size:28px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,0.3);z-index:999998;display:flex;align-items:center;justify-content:center;transition:transform 0.2s;';" +
+    "btn.onmouseover=function(){btn.style.transform='scale(1.1)'};" +
+    "btn.onmouseout=function(){btn.style.transform='scale(1)'};" +
+    "var iframe=document.createElement('iframe');" +
+    "iframe.src='" + baseUrl + "/widget/" + businessId + "';" +
+    "iframe.style.cssText='position:fixed;bottom:90px;" + position + ";width:380px;height:600px;border:none;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,0.25);z-index:999999;display:none;';" +
+    "iframe.allow='clipboard-write';" +
+    "var open=false;" +
+    "btn.onclick=function(){open=!open;iframe.style.display=open?'block':'none';btn.innerHTML=open?'×':" + JSON.stringify(emoji) + ";};" +
+    "document.body.appendChild(btn);document.body.appendChild(iframe);" +
+    "})();";
   res.type('application/javascript').send(script);
 });
 
