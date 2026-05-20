@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Leadler — NexaBot Admin</title>
+<style>
+:root{--bg:#0d0d0d;--surface:#161616;--surface2:#1a1a1a;--border:#262626;--gold:#C9A84C;--text:#e8e8e8;--muted:#888}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px}
+.wrap{max-width:1200px;margin:0 auto}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:14px}
+.head h1{font-size:24px;color:var(--gold)}
+.nav{display:flex;gap:14px;font-size:13px}
+.nav a{color:var(--muted);text-decoration:none}.nav a:hover{color:var(--text)}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+select,input,button{font:inherit;color:var(--text);background:#0a0a0a;border:1px solid var(--border);border-radius:8px;padding:9px 14px;outline:none}
+button{background:var(--gold);color:#000;border:none;font-weight:600;cursor:pointer}
+button.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+.stats{display:flex;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 20px;min-width:120px}
+.stat .lbl{font-size:11px;color:var(--muted);text-transform:uppercase}
+.stat .v{font-size:22px;font-weight:700;color:var(--gold);margin-top:4px}
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);font-size:14px}
+th{background:var(--surface2);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+tr:hover{background:var(--surface2)}
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;text-transform:uppercase}
+.b-new{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
+.b-aradi{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+.b-kazandi{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
+.b-kaybetti{background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)}
+.b-spam{background:rgba(136,136,136,.15);color:#888;border:1px solid rgba(136,136,136,.3)}
+select.status{font-size:12px;padding:5px 10px;cursor:pointer}
+.actions{display:flex;gap:6px}
+.actions button{font-size:11px;padding:5px 9px}
+.actions button.del{background:#dc2626;color:#fff}
+textarea{font:inherit;color:var(--text);background:#0a0a0a;border:1px solid var(--border);border-radius:6px;padding:6px 10px;width:100%;min-height:36px;font-size:13px;resize:vertical}
+.empty{text-align:center;padding:40px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>🎯 Leadler</h1>
+    <div class="nav">
+      <a href="/admin">Admin</a> · <a href="/admin/analytics">Analytics</a> · <a href="/admin/conversations">Konuşmalar</a> · <a href="/admin/test">Test</a>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="filters">
+    <select id="bizFilter" onchange="render()">
+      <option value="">Tüm İşletmeler</option>
+    </select>
+    <select id="statusFilter" onchange="render()">
+      <option value="">Tüm Durumlar</option>
+      <option value="new">Yeni</option>
+      <option value="aradi">Aradım</option>
+      <option value="kazandi">Kazandı</option>
+      <option value="kaybetti">Kaybetti</option>
+      <option value="spam">Spam</option>
+    </select>
+    <input id="search" placeholder="🔍 Mesajda ara..." oninput="render()" style="flex:1;min-width:200px">
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Tarih</th>
+        <th>İşletme</th>
+        <th>Mesaj</th>
+        <th>Durum</th>
+        <th>Not</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"><tr><td colspan="6" class="empty">Yükleniyor...</td></tr></tbody>
+  </table>
+</div>
+
+<script>
+const TOKEN = localStorage.getItem('nexa_admin_token') || localStorage.getItem('nxbt');
+if (!TOKEN) { alert('Önce admin\'den giriş yap'); location.href='/admin'; }
+const api = (p, opts={}) => fetch(p, {...opts, headers:{'Authorization':'Bearer '+TOKEN, 'Content-Type':'application/json', ...(opts.headers||{})}}).then(r=>r.json());
+const $ = id => document.getElementById(id);
+let allLeads = [], bizMap = {};
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function load() {
+  const bs = await api('/api/businesses');
+  bizMap = Object.fromEntries(bs.map(b => [b.id, b.name || b.id]));
+  $('bizFilter').innerHTML += bs.map(b => `<option value="${b.id}">${esc(b.name || b.id)}</option>`).join('');
+  allLeads = await api('/api/leads');
+  render();
+}
+
+function render() {
+  const bizF = $('bizFilter').value;
+  const stF = $('statusFilter').value;
+  const q = $('search').value.toLowerCase();
+  let list = allLeads;
+  if (bizF) list = list.filter(l => l.business_id === bizF);
+  if (stF) list = list.filter(l => (l.status||'new') === stF);
+  if (q) list = list.filter(l => (l.message||'').toLowerCase().includes(q));
+
+  // Stats
+  const total = allLeads.length;
+  const counts = { new: 0, aradi: 0, kazandi: 0, kaybetti: 0, spam: 0 };
+  allLeads.forEach(l => { counts[l.status||'new'] = (counts[l.status||'new']||0) + 1; });
+  $('stats').innerHTML = `
+    <div class="stat"><div class="lbl">Toplam</div><div class="v">${total}</div></div>
+    <div class="stat"><div class="lbl">Yeni</div><div class="v" style="color:#60a5fa">${counts.new}</div></div>
+    <div class="stat"><div class="lbl">Aradım</div><div class="v" style="color:#fbbf24">${counts.aradi}</div></div>
+    <div class="stat"><div class="lbl">Kazandı</div><div class="v" style="color:#22c55e">${counts.kazandi}</div></div>
+    <div class="stat"><div class="lbl">Kaybetti</div><div class="v" style="color:#ef4444">${counts.kaybetti}</div></div>
+  `;
+
+  if (!list.length) { $('tbody').innerHTML = '<tr><td colspan="6" class="empty">Lead yok</td></tr>'; return; }
+  $('tbody').innerHTML = list.map(l => {
+    const ts = new Date(parseInt(l.timestamp));
+    const st = l.status || 'new';
+    return `<tr data-id="${l.id}">
+      <td style="font-size:12px;color:var(--muted)">${ts.toLocaleDateString('tr-TR')}<br>${ts.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}</td>
+      <td style="font-size:13px">${esc(bizMap[l.business_id]||'-')}</td>
+      <td style="max-width:340px">${esc(l.message)}</td>
+      <td><select class="status" onchange="updateStatus(${l.id}, this.value)">
+        <option value="new" ${st==='new'?'selected':''}>Yeni</option>
+        <option value="aradi" ${st==='aradi'?'selected':''}>Aradım</option>
+        <option value="kazandi" ${st==='kazandi'?'selected':''}>Kazandı</option>
+        <option value="kaybetti" ${st==='kaybetti'?'selected':''}>Kaybetti</option>
+        <option value="spam" ${st==='spam'?'selected':''}>Spam</option>
+      </select></td>
+      <td><textarea onchange="updateNotes(${l.id}, this.value)" placeholder="Not...">${esc(l.notes||'')}</textarea></td>
+      <td class="actions"><button class="del" onclick="del(${l.id})">Sil</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function updateStatus(id, status) {
+  await api(`/api/lead/${id}`, { method:'PATCH', body: JSON.stringify({ status }) });
+  const l = allLeads.find(x => x.id === id); if (l) l.status = status;
+  render();
+}
+async function updateNotes(id, notes) {
+  await api(`/api/lead/${id}`, { method:'PATCH', body: JSON.stringify({ notes }) });
+  const l = allLeads.find(x => x.id === id); if (l) l.notes = notes;
+}
+async function del(id) {
+  if (!confirm('Bu lead silinsin mi?')) return;
+  await fetch(`/api/lead/${id}`, { method:'DELETE', headers:{'Authorization':'Bearer '+TOKEN} });
+  allLeads = allLeads.filter(l => l.id !== id);
+  render();
+}
+
+load();
+</script>
+</body></html>
