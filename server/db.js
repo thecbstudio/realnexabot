@@ -49,9 +49,24 @@ async function init() {
       business_id  TEXT NOT NULL DEFAULT '',
       session_id   TEXT NOT NULL DEFAULT '',
       message      TEXT NOT NULL DEFAULT '',
-      timestamp    BIGINT NOT NULL DEFAULT 0
+      timestamp    BIGINT NOT NULL DEFAULT 0,
+      status       TEXT NOT NULL DEFAULT 'new',
+      notes        TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_leads_ts ON leads(timestamp DESC);
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'new';
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT '';
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS error_log (
+      id BIGSERIAL PRIMARY KEY,
+      ts BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+      level TEXT NOT NULL DEFAULT 'error',
+      source TEXT,
+      message TEXT,
+      stack TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_errlog_ts ON error_log(ts DESC);
   `);
 
   await pool.query(`
@@ -152,11 +167,28 @@ function saveLead(businessId, sessionId, message) {
 }
 
 function getAllLeads() {
-  return pool.query('SELECT id, business_id, session_id, message, timestamp FROM leads ORDER BY timestamp DESC LIMIT 500')
+  return pool.query('SELECT id, business_id, session_id, message, timestamp, COALESCE(status,'new') AS status, COALESCE(notes,'') AS notes FROM leads ORDER BY timestamp DESC LIMIT 500')
     .then(r => r.rows.map(row => ({
       id: row.id, business_id: row.business_id, session_id: row.session_id, message: row.message, timestamp: row.timestamp,
+      status: row.status, notes: row.notes,
       businessId: row.business_id, sessionId: row.session_id
     })));
+}
+
+function updateLead(id, status, notes) {
+  return pool.query('UPDATE leads SET status = COALESCE($2, status), notes = COALESCE($3, notes) WHERE id = $1', [id, status, notes]);
+}
+
+function deleteLead(id) {
+  return pool.query('DELETE FROM leads WHERE id = $1', [id]);
+}
+
+function logError(source, message, stack) {
+  return pool.query('INSERT INTO error_log (level, source, message, stack) VALUES ('error', $1, $2, $3)', [source||'', String(message||'').slice(0,500), String(stack||'').slice(0,2000)]).catch(()=>{});
+}
+
+function getErrors(limit) {
+  return pool.query('SELECT id, ts, source, message FROM error_log ORDER BY ts DESC LIMIT $1', [limit||50]).then(r=>r.rows);
 }
 
 /* ─── ANALYTICS ───────────────────────────────────────────────────────────── */
@@ -176,4 +208,4 @@ function getAnalytics() {
     .then(r => r.rows);
 }
 
-module.exports = { init, getBusiness, saveBusiness, deleteBusiness, getAllBusinesses, getConversation, saveConversation, getAllConversationSummaries, pruneOldConversations, saveLead, getAllLeads, trackMessage, getAnalytics };
+module.exports = { init, getBusiness, saveBusiness, deleteBusiness, getAllBusinesses, getConversation, saveConversation, getAllConversationSummaries, pruneOldConversations, saveLead, getAllLeads, updateLead, deleteLead, trackMessage, getAnalytics, logError, getErrors };
