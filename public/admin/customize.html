@@ -64,8 +64,8 @@ button:hover{opacity:.9}
       <label>Logo / Avatar Resmi (PNG/JPG, max 1MB) — boşsa emoji kullanılır</label>
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px">
         <div id="avatarPreview" style="width:48px;height:48px;border-radius:50%;background:#0a0a0a;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:24px">🤖</div>
-        <input type="file" id="avatarFile" accept="image/*" style="flex:1">
-        <button type="button" onclick="uploadAvatar()" style="padding:9px 14px">Yükle</button>
+        <input type="file" id="avatarFile" accept="image/*" style="flex:1" onchange="uploadAvatar()">
+        <button type="button" onclick="document.getElementById('avatarFile').click()" style="padding:9px 14px">Seç</button>
       </div>
 
       <label>Karşılama Mesajı (Türkçe)</label>
@@ -96,10 +96,7 @@ button:hover{opacity:.9}
         <option value="bottom-left">Sol Alt</option>
       </select>
 
-      <div class="controls">
-        <button onclick="saveBiz()">💾 Kaydet</button>
-        <button onclick="previewLive()" style="background:transparent;color:var(--text);border:1px solid var(--border)">🔍 Canlı Önizle</button>
-      </div>
+      <div class="controls"><span id="saveStatus" style="color:var(--muted);font-size:13px;align-self:center">Değişiklikleri otomatik kaydeder</span><button onclick="previewLive()" style="background:transparent;color:var(--text);border:1px solid var(--border)">🔍 Yeni Sekmede Aç</button></div>
 
       <h2 style="margin-top:32px">Sitenize Ekleyin</h2>
       <p style="font-size:13px;color:var(--muted);margin-bottom:8px">Bu kodu sitenizin <code>&lt;/body&gt;</code> taginden hemen önce yapıştırın:</p>
@@ -175,7 +172,26 @@ function updatePreview() {
   $('pQuick').innerHTML = qr.slice(0, 4).map(q => `<button>${q}</button>`).join('');
 }
 
-['bot_name','emoji','greeting','quick_replies'].forEach(id => $(id).addEventListener('input', updatePreview));
+
+let saveTimer = null;
+function scheduleAutoSave() {
+  if (!currentBiz) return;
+  clearTimeout(saveTimer);
+  document.getElementById('saveStatus').textContent = '⏳ Kaydediliyor...';
+  document.getElementById('saveStatus').style.color = 'var(--gold)';
+  saveTimer = setTimeout(async () => {
+    await saveBiz(true);
+    document.getElementById('saveStatus').textContent = '✓ Kaydedildi';
+    document.getElementById('saveStatus').style.color = '#10b981';
+    setTimeout(() => {
+      document.getElementById('saveStatus').textContent = 'Otomatik kaydeder';
+      document.getElementById('saveStatus').style.color = 'var(--muted)';
+    }, 1500);
+  }, 700);
+}
+
+['bot_name','emoji','greeting','greeting_en','quick_replies','widget_position'].forEach(id => $(id).addEventListener('input', () => { updatePreview(); scheduleAutoSave(); }));
+['widget_color','widget_color_hex','widget_bg','widget_bg_hex','widget_position'].forEach(id => $(id).addEventListener('change', scheduleAutoSave));
 
 function syncColor(){$('widget_color_hex').value=$('widget_color').value;updatePreview();}
 function syncColorText(){const v=$('widget_color_hex').value;if(/^#[0-9a-f]{6}$/i.test(v)){$('widget_color').value=v;updatePreview();}}
@@ -188,7 +204,7 @@ function updateEmbed() {
   $('embedCode').textContent = `<script src="${url}"><\/script>`;
 }
 
-async function saveBiz() {
+async function saveBiz(silent) {
   if (!currentBiz) return;
   const body = {
     businessId: currentBiz.id,
@@ -205,8 +221,8 @@ async function saveBiz() {
   if (r.business) {
     currentBiz = { ...currentBiz, ...body };
     businesses = businesses.map(b => b.id === currentBiz.id ? currentBiz : b);
-    alert('✓ Kaydedildi');
-  } else alert('Hata: ' + JSON.stringify(r));
+    if (!silent) alert('✓ Kaydedildi');
+  } else if (!silent) alert('Hata: ' + JSON.stringify(r));
 }
 
 function previewLive() {
