@@ -152,8 +152,11 @@ function saveLead(businessId, sessionId, message) {
 }
 
 function getAllLeads() {
-  return pool.query('SELECT * FROM leads ORDER BY timestamp DESC LIMIT 500')
-    .then(r => r.rows);
+  return pool.query('SELECT id, business_id, session_id, message, timestamp FROM leads ORDER BY timestamp DESC LIMIT 500')
+    .then(r => r.rows.map(row => ({
+      id: row.id, business_id: row.business_id, session_id: row.session_id, message: row.message, timestamp: row.timestamp,
+      businessId: row.business_id, sessionId: row.session_id
+    })));
 }
 
 /* ─── ANALYTICS ───────────────────────────────────────────────────────────── */
