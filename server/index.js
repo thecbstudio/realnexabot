@@ -521,6 +521,29 @@ app.get('/admin/analytics', (_req, res) => res.sendFile(path.join(__dirname, '..
 app.get('/admin/customize', (_req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin', 'customize.html')));
 app.get('/admin/conversations', (_req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin', 'conversations.html')));
 
+
+/* --- BACKFILL ANALYTICS from conversations + leads --- */
+app.post('/api/admin/backfill-analytics', requireAdmin, async (_req, res) => {
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 2 });
+    await pool.query('TRUNCATE analytics');
+    await pool.query(`
+      INSERT INTO analytics (business_id, message_count, session_count)
+      SELECT business_id, COALESCE(SUM(msg_count), 0)::int AS message_count, COUNT(*)::int AS session_count
+      FROM conversations
+      WHERE business_id <> ''
+      GROUP BY business_id
+    `);
+    const r = await pool.query('SELECT * FROM analytics ORDER BY message_count DESC');
+    await pool.end();
+    res.json({ ok: true, rows: r.rows });
+  } catch (e) {
+    console.error('[backfill]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 /* --- ONE-TIME MIGRATION FROM JSON --- */
 app.post('/api/admin/migrate-json', requireAdmin, async (req, res) => {
   try {
