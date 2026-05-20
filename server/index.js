@@ -544,6 +544,21 @@ app.post('/api/admin/backfill-analytics', requireAdmin, async (_req, res) => {
   }
 });
 
+
+/* --- CLEANUP ORPHAN DATA --- */
+app.post('/api/admin/cleanup-orphans', requireAdmin, async (_req, res) => {
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 2 });
+    const c = await pool.query("DELETE FROM conversations WHERE business_id NOT IN (SELECT id FROM businesses) OR business_id = ''");
+    const l = await pool.query("DELETE FROM leads WHERE business_id NOT IN (SELECT id FROM businesses) OR business_id = ''");
+    const a = await pool.query("DELETE FROM analytics WHERE business_id NOT IN (SELECT id FROM businesses) OR business_id = ''");
+    const k = await pool.query("DELETE FROM kb_sources WHERE business_id NOT IN (SELECT id FROM businesses)");
+    await pool.end();
+    res.json({ ok: true, deleted: { conversations: c.rowCount, leads: l.rowCount, analytics: a.rowCount, kb_sources: k.rowCount } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 /* --- ONE-TIME MIGRATION FROM JSON --- */
 app.post('/api/admin/migrate-json', requireAdmin, async (req, res) => {
   try {
