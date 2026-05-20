@@ -167,7 +167,7 @@ function saveLead(businessId, sessionId, message) {
 }
 
 function getAllLeads() {
-  return pool.query('SELECT id, business_id, session_id, message, timestamp, COALESCE(status,'new') AS status, COALESCE(notes,'') AS notes FROM leads ORDER BY timestamp DESC LIMIT 500')
+  return pool.query("SELECT id, business_id, session_id, message, timestamp, COALESCE(status,'new') AS status, COALESCE(notes,'') AS notes FROM leads ORDER BY timestamp DESC LIMIT 500")
     .then(r => r.rows.map(row => ({
       id: row.id, business_id: row.business_id, session_id: row.session_id, message: row.message, timestamp: row.timestamp,
       status: row.status, notes: row.notes,
@@ -184,7 +184,7 @@ function deleteLead(id) {
 }
 
 function logError(source, message, stack) {
-  return pool.query('INSERT INTO error_log (level, source, message, stack) VALUES ('error', $1, $2, $3)', [source||'', String(message||'').slice(0,500), String(stack||'').slice(0,2000)]).catch(()=>{});
+  return pool.query("INSERT INTO error_log (level, source, message, stack) VALUES ('error', $1, $2, $3)", [source||'', String(message||'').slice(0,500), String(stack||'').slice(0,2000)]).catch(()=>{});
 }
 
 function getErrors(limit) {
