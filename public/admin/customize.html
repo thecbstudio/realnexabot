@@ -64,8 +64,28 @@ button:hover{opacity:.9}
       <label>Logo / Avatar Resmi — herhangi boyutta yükle, sistem 256x256'ya küçültür — boşsa emoji kullanılır</label>
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px">
         <div id="avatarPreview" style="width:48px;height:48px;border-radius:50%;background:#0a0a0a;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:24px">🤖</div>
-        <input type="file" id="avatarFile" accept="image/*" style="flex:1" onchange="uploadAvatar()">
-        <button type="button" onclick="document.getElementById('avatarFile').click()" style="padding:9px 14px">Seç</button>
+        <input type="file" id="avatarFile" accept="image/*" style="flex:1" onchange="openCropper()">
+        <button type="button" id="removeAvatarBtn" onclick="removeAvatar()" style="padding:9px 14px;background:#dc2626;color:#fff;display:none">🗑 Sil</button>
+      </div>
+
+      
+      <!-- Cropper Modal -->
+      <div id="cropperModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:1000;justify-content:center;align-items:center">
+        <div style="background:var(--surface);border:1px solid var(--gold);border-radius:12px;padding:24px;max-width:90vw;max-height:90vh;overflow-y:auto">
+          <h3 style="color:var(--gold);font-size:18px;margin-bottom:14px">Resmi Kırp ve Yerleştir</h3>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:14px">Sürükle, yakınlaştır — sonra "Yükle" bas.</p>
+          <div style="position:relative;width:300px;height:300px;border-radius:50%;overflow:hidden;background:#0a0a0a;border:2px dashed var(--gold);cursor:grab;margin:0 auto" id="cropArea">
+            <canvas id="cropCanvas" width="300" height="300" style="display:block"></canvas>
+          </div>
+          <div style="margin-top:18px">
+            <label style="font-size:12px;color:var(--muted)">Yakınlaştır: <span id="zoomVal">100</span>%</label>
+            <input type="range" id="zoomSlider" min="50" max="300" step="5" value="100" style="width:100%;margin-top:6px">
+          </div>
+          <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end">
+            <button type="button" onclick="cancelCrop()" style="background:transparent;color:var(--text);border:1px solid var(--border);padding:10px 18px">İptal</button>
+            <button type="button" onclick="confirmCrop()" style="background:var(--gold);color:#000;padding:10px 18px">Yükle</button>
+          </div>
+        </div>
       </div>
 
       <label>Karşılama Mesajı (Türkçe)</label>
@@ -230,37 +250,68 @@ function previewLive() {
 }
 
 
-async function uploadAvatar() {
+let _cropImg = null, _cropX = 0, _cropY = 0, _cropDragging = false, _cropStartX = 0, _cropStartY = 0;
+
+function openCropper() {
   const f = document.getElementById('avatarFile').files[0];
   if (!f) return;
-  if (!currentBiz) { alert('Önce işletme seç'); return; }
-  if (f.size > 5 * 1024 * 1024) return alert(`Çok büyük: ${(f.size/1024/1024).toFixed(1)} MB. Max 5 MB.`);
+  if (!currentBiz) { alert('Önce işletme seç'); document.getElementById('avatarFile').value = ''; return; }
+  if (f.size > 5 * 1024 * 1024) { alert(`Çok büyük: ${(f.size/1024/1024).toFixed(1)} MB. Max 5 MB.`); document.getElementById('avatarFile').value = ''; return; }
+  const img = new Image();
+  img.onload = () => {
+    _cropImg = img;
+    // Fit image to canvas initially (cover)
+    const scale = Math.max(300/img.width, 300/img.height);
+    _cropX = (300 - img.width * scale) / 2;
+    _cropY = (300 - img.height * scale) / 2;
+    document.getElementById('zoomSlider').value = Math.round(scale * 100);
+    document.getElementById('zoomVal').textContent = Math.round(scale * 100);
+    document.getElementById('cropperModal').style.display = 'flex';
+    drawCrop();
+  };
+  img.onerror = () => alert('Resim okunamadı');
+  img.src = URL.createObjectURL(f);
+}
 
+function drawCrop() {
+  if (!_cropImg) return;
+  const canvas = document.getElementById('cropCanvas');
+  const ctx = canvas.getContext('2d');
+  const scale = parseInt(document.getElementById('zoomSlider').value) / 100;
+  ctx.clearRect(0,0,300,300);
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,300,300);
+  ctx.drawImage(_cropImg, _cropX, _cropY, _cropImg.width * scale, _cropImg.height * scale);
+}
+
+function setupCropper() {
+  const area = document.getElementById('cropArea');
+  if (!area || area.dataset.bound) return;
+  area.dataset.bound = '1';
+  area.addEventListener('pointerdown', e => { _cropDragging = true; _cropStartX = e.clientX - _cropX; _cropStartY = e.clientY - _cropY; area.style.cursor = 'grabbing'; area.setPointerCapture(e.pointerId); });
+  area.addEventListener('pointermove', e => { if (!_cropDragging) return; _cropX = e.clientX - _cropStartX; _cropY = e.clientY - _cropStartY; drawCrop(); });
+  area.addEventListener('pointerup', () => { _cropDragging = false; area.style.cursor = 'grab'; });
+  document.getElementById('zoomSlider').addEventListener('input', () => { document.getElementById('zoomVal').textContent = document.getElementById('zoomSlider').value; drawCrop(); });
+}
+
+function cancelCrop() {
+  document.getElementById('cropperModal').style.display = 'none';
+  document.getElementById('avatarFile').value = '';
+  _cropImg = null;
+}
+
+async function confirmCrop() {
+  const canvas = document.getElementById('cropCanvas');
+  // Resize to 256x256 final output
+  const out = document.createElement('canvas');
+  out.width = 256; out.height = 256;
+  out.getContext('2d').drawImage(canvas, 0, 0, 300, 300, 0, 0, 256, 256);
+  const blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.88));
+  document.getElementById('cropperModal').style.display = 'none';
   const ss = document.getElementById('saveStatus');
-  ss.textContent = '⏳ Resim hazırlanıyor...'; ss.style.color = 'var(--gold)';
-
+  ss.textContent = '⬆ Yükleniyor...'; ss.style.color = 'var(--gold)';
+  const fd = new FormData();
+  fd.append('file', new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
   try {
-    const resizedBlob = await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const size = 256;
-        const canvas = document.createElement('canvas');
-        canvas.width = size; canvas.height = size;
-        const ctx = canvas.getContext('2d');
-        const src = Math.min(img.width, img.height);
-        const sx = (img.width - src) / 2;
-        const sy = (img.height - src) / 2;
-        ctx.drawImage(img, sx, sy, src, src, 0, 0, size, size);
-        canvas.toBlob(b => resolve(b), 'image/jpeg', 0.85);
-      };
-      img.onerror = () => reject(new Error('Resim okunamadı'));
-      img.src = URL.createObjectURL(f);
-    });
-
-    const fd = new FormData();
-    fd.append('file', new File([resizedBlob], 'avatar.jpg', { type: 'image/jpeg' }));
-
-    ss.textContent = '⬆ Yükleniyor...';
     const r = await fetch(`/api/business/${currentBiz.id}/avatar`, { method:'POST', headers:{'Authorization':'Bearer '+TOKEN}, body: fd });
     const d = await r.json();
     if (d.ok) {
@@ -268,15 +319,55 @@ async function uploadAvatar() {
       currentBiz = businesses.find(b => b.id === currentBiz.id);
       refreshAvatarPreview();
       ss.textContent = '✓ Avatar yüklendi'; ss.style.color = '#10b981';
+      document.getElementById('removeAvatarBtn').style.display = 'inline-block';
       setTimeout(() => { ss.textContent = 'Otomatik kaydeder'; ss.style.color = 'var(--muted)'; }, 2500);
     } else {
       ss.textContent = '✗ Hata: ' + (d.error || '?'); ss.style.color = '#dc2626';
     }
   } catch (e) {
-    ss.textContent = '✗ Hata: ' + e.message; ss.style.color = '#dc2626';
+    ss.textContent = '✗ ' + e.message; ss.style.color = '#dc2626';
   }
   document.getElementById('avatarFile').value = '';
+  _cropImg = null;
 }
+
+async function removeAvatar() {
+  if (!currentBiz) return;
+  if (!confirm('Avatar silinsin mi?')) return;
+  const ss = document.getElementById('saveStatus');
+  ss.textContent = '⏳ Siliniyor...'; ss.style.color = 'var(--gold)';
+  const body = { businessId: currentBiz.id, avatar_url: '' };
+  await api('/api/business', { method: 'POST', body: JSON.stringify(body) });
+  businesses = await api('/api/businesses');
+  currentBiz = businesses.find(b => b.id === currentBiz.id);
+  refreshAvatarPreview();
+  document.getElementById('removeAvatarBtn').style.display = 'none';
+  ss.textContent = '✓ Avatar silindi'; ss.style.color = '#10b981';
+  setTimeout(() => { ss.textContent = 'Otomatik kaydeder'; ss.style.color = 'var(--muted)'; }, 2500);
+}
+
+function refreshAvatarPreview() {
+  const el = document.getElementById('avatarPreview');
+  const hasAvatar = currentBiz && currentBiz.avatar_url;
+  if (hasAvatar) {
+    el.innerHTML = `<img src="${currentBiz.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    document.getElementById('removeAvatarBtn').style.display = 'inline-block';
+  } else {
+    el.innerHTML = ''; el.textContent = document.getElementById('emoji').value || '🤖';
+    document.getElementById('removeAvatarBtn').style.display = 'none';
+  }
+  const pa = document.getElementById('pAvatar');
+  if (pa) {
+    if (hasAvatar) {
+      pa.innerHTML = `<img src="${currentBiz.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+      pa.style.background = 'transparent';
+    } else {
+      pa.innerHTML = ''; pa.textContent = document.getElementById('emoji').value || '🤖';
+      pa.style.background = '#fff';
+    }
+  }
+}
+
 
 function refreshAvatarPreview() {
   const el = document.getElementById('avatarPreview');
@@ -297,6 +388,7 @@ function refreshAvatarPreview() {
   }
 }
 
+setupCropper();
 load();
 </script>
 </body></html>
