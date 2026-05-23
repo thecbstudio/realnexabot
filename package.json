@@ -8,7 +8,7 @@
     "dev": "node --watch server/index.js",
     "hash": "node scripts/hash-password.js",
     "migrate": "node scripts/migrate-to-postgres.js",
-    "heroku-postbuild": "cd admin-spa && npm install --no-audit --no-fund && npm run build",
+    "heroku-postbuild": "cd admin-spa && npm install --include=dev --no-audit --no-fund && npm run build",
     "build:spa": "cd admin-spa && npm install && npm run build"
   },
   "dependencies": {
