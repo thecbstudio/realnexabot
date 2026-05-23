@@ -252,6 +252,17 @@ function isLead(message) { return LEAD_PATTERN.test(message); }
 /* ─── PAGE ROUTES ───────────────────────────────────────────────────────── */
 // Landing page (public/index.html served automatically by express.static)
 
+
+/* --- NEW ADMIN SPA (/admin-new) --- */
+const ADMIN_SPA_DIR = path.join(__dirname, '..', 'public', 'admin-app');
+app.use('/admin-app', express.static(ADMIN_SPA_DIR, { index: false, fallthrough: true }));
+app.get(/^\/admin-new(\/.*)?$/, (_req, res) => {
+  const indexHtml = path.join(ADMIN_SPA_DIR, 'index.html');
+  res.sendFile(indexHtml, err => {
+    if (err) res.status(503).send('Admin SPA build not found. Run: cd admin-spa && npm install && npm run build');
+  });
+});
+
 app.get('/admin/kb', (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'admin', 'kb.html'));
 });
