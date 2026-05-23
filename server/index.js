@@ -608,7 +608,7 @@ app.get('/api/admin/errors', requireAdmin, async (req, res) => {
 app.post('/api/business/:id/avatar', requireAdmin, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file' });
-    if (req.file.size > 1024 * 1024) return res.status(400).json({ error: 'Max 1MB' });
+    if (req.file.size > 5 * 1024 * 1024) return res.status(400).json({ error: 'Max 5MB' });
     if (!/^image\//.test(req.file.mimetype)) return res.status(400).json({ error: 'Only images' });
     const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     const biz = await db.getBusiness(req.params.id);
