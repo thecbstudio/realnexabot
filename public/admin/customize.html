@@ -229,6 +229,74 @@ function previewLive() {
   if (currentBiz) window.open('/widget/' + currentBiz.id, '_blank', 'width=400,height=620');
 }
 
+
+async function uploadAvatar() {
+  const f = document.getElementById('avatarFile').files[0];
+  if (!f) return;
+  if (!currentBiz) { alert('Önce işletme seç'); return; }
+  if (f.size > 5 * 1024 * 1024) return alert(`Çok büyük: ${(f.size/1024/1024).toFixed(1)} MB. Max 5 MB.`);
+
+  const ss = document.getElementById('saveStatus');
+  ss.textContent = '⏳ Resim hazırlanıyor...'; ss.style.color = 'var(--gold)';
+
+  try {
+    const resizedBlob = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const size = 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const src = Math.min(img.width, img.height);
+        const sx = (img.width - src) / 2;
+        const sy = (img.height - src) / 2;
+        ctx.drawImage(img, sx, sy, src, src, 0, 0, size, size);
+        canvas.toBlob(b => resolve(b), 'image/jpeg', 0.85);
+      };
+      img.onerror = () => reject(new Error('Resim okunamadı'));
+      img.src = URL.createObjectURL(f);
+    });
+
+    const fd = new FormData();
+    fd.append('file', new File([resizedBlob], 'avatar.jpg', { type: 'image/jpeg' }));
+
+    ss.textContent = '⬆ Yükleniyor...';
+    const r = await fetch(`/api/business/${currentBiz.id}/avatar`, { method:'POST', headers:{'Authorization':'Bearer '+TOKEN}, body: fd });
+    const d = await r.json();
+    if (d.ok) {
+      businesses = await api('/api/businesses');
+      currentBiz = businesses.find(b => b.id === currentBiz.id);
+      refreshAvatarPreview();
+      ss.textContent = '✓ Avatar yüklendi'; ss.style.color = '#10b981';
+      setTimeout(() => { ss.textContent = 'Otomatik kaydeder'; ss.style.color = 'var(--muted)'; }, 2500);
+    } else {
+      ss.textContent = '✗ Hata: ' + (d.error || '?'); ss.style.color = '#dc2626';
+    }
+  } catch (e) {
+    ss.textContent = '✗ Hata: ' + e.message; ss.style.color = '#dc2626';
+  }
+  document.getElementById('avatarFile').value = '';
+}
+
+function refreshAvatarPreview() {
+  const el = document.getElementById('avatarPreview');
+  if (currentBiz && currentBiz.avatar_url) {
+    el.innerHTML = `<img src="${currentBiz.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  } else {
+    el.innerHTML = ''; el.textContent = document.getElementById('emoji').value || '🤖';
+  }
+  const pa = document.getElementById('pAvatar');
+  if (pa) {
+    if (currentBiz && currentBiz.avatar_url) {
+      pa.innerHTML = `<img src="${currentBiz.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+      pa.style.background = 'transparent';
+    } else {
+      pa.innerHTML = ''; pa.textContent = document.getElementById('emoji').value || '🤖';
+      pa.style.background = '#fff';
+    }
+  }
+}
+
 load();
 </script>
 </body></html>
