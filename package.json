@@ -1,13 +1,15 @@
 {
   "name": "nexabot",
   "version": "1.0.0",
-  "description": "NexaBot — AI Chatbot SaaS Backend",
+  "description": "NexaBot \u2014 AI Chatbot SaaS Backend",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "hash": "node scripts/hash-password.js",
-    "migrate": "node scripts/migrate-to-postgres.js"
+    "migrate": "node scripts/migrate-to-postgres.js",
+    "heroku-postbuild": "cd admin-spa && npm ci && npm run build",
+    "build:spa": "cd admin-spa && npm install && npm run build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",
