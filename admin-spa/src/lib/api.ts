@@ -33,6 +33,7 @@ export const api = {
   // Businesses
   listBusinesses: () => request<any[]>('/api/businesses'),
   getBusiness: (id: string) => request<any>(`/api/business/${id}`, {}, false),
+  getBusinessFull: (id: string) => request<any>(`/api/admin/business/${id}`),
   saveBusiness: (data: any) => request<any>('/api/business', { method: 'POST', body: JSON.stringify(data) }),
   deleteBusiness: (id: string) => request<any>(`/api/business/${id}`, { method: 'DELETE' }),
 
