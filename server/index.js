@@ -632,6 +632,14 @@ app.post('/api/business/:id/avatar', requireAdmin, upload.single('file'), async 
 /* --- NEW ADMIN PAGE: LEADS --- */
 app.get('/admin/leads', (_req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin', 'leads.html')));
 
+
+/* --- ADMIN: full business data --- */
+app.get('/api/admin/business/:id', requireAdmin, async (req, res) => {
+  const biz = await db.getBusiness(req.params.id);
+  if (!biz) return res.status(404).json({ error: 'Not found' });
+  res.json(biz);
+});
+
 /* --- ONE-TIME MIGRATION FROM JSON --- */
 app.post('/api/admin/migrate-json', requireAdmin, async (req, res) => {
   try {
