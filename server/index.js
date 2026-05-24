@@ -56,6 +56,12 @@ app.use(cors({
 
 /* ─── MIDDLEWARE ────────────────────────────────────────────────────────── */
 app.use(express.json({ limit: '10kb' }));
+app.get(/^\/admin(\/.*)?$/, (_req, res) => {
+  const indexHtml = path.join(ADMIN_SPA_DIR, 'index.html');
+  res.sendFile(indexHtml, err => {
+    if (err) res.status(503).send('Admin SPA build not found. Run: cd admin-spa && npm install && npm run build');
+  });
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 /* ─── AUTH ──────────────────────────────────────────────────────────────── */
@@ -256,11 +262,7 @@ function isLead(message) { return LEAD_PATTERN.test(message); }
 /* --- NEW ADMIN SPA (/admin-new) --- */
 const ADMIN_SPA_DIR = path.join(__dirname, '..', 'public', 'admin-app');
 app.use('/admin-app', express.static(ADMIN_SPA_DIR, { index: false, fallthrough: true }));
-app.get(/^\/admin-new(\/.*)?$/, (_req, res) => {
-  const indexHtml = path.join(ADMIN_SPA_DIR, 'index.html');
-  res.sendFile(indexHtml, err => {
-    if (err) res.status(503).send('Admin SPA build not found. Run: cd admin-spa && npm install && npm run build');
-  });
+
 });
 
 app.get('/admin/kb', (_req, res) => {
