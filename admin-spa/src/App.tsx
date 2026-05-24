@@ -48,7 +48,7 @@ function Layout() {
 
 export default function App() {
   return (
-    <BrowserRouter basename="/admin-new">
+    <BrowserRouter basename="/admin">
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route element={<AuthGate />}>
