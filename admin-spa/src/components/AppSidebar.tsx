@@ -1,23 +1,21 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, MessageSquare, Database, Palette, MessagesSquare, Target, BarChart3, Smartphone, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { clearToken } from '@/lib/auth'
-import { useNavigate } from 'react-router-dom'
 
 const items = [
-  { to: '/admin-new', label: 'Genel Bakış', icon: LayoutDashboard, end: true },
-  { to: '/admin-new/test', label: 'Test Bot', icon: MessageSquare },
-  { to: '/admin-new/knowledge', label: 'Bilgi Tabanı', icon: Database },
-  { to: '/admin-new/customize', label: 'Özelleştirme', icon: Palette },
-  { to: '/admin-new/conversations', label: 'Konuşmalar', icon: MessagesSquare },
-  { to: '/admin-new/leads', label: 'Leadler', icon: Target },
-  { to: '/admin-new/analytics', label: 'Analiz', icon: BarChart3 },
-  { to: '/admin-new/whatsapp', label: 'WhatsApp', icon: Smartphone },
+  { to: '/', label: 'Genel Bakış', icon: LayoutDashboard, end: true },
+  { to: '/test', label: 'Test Bot', icon: MessageSquare },
+  { to: '/knowledge', label: 'Bilgi Tabanı', icon: Database },
+  { to: '/customize', label: 'Özelleştirme', icon: Palette },
+  { to: '/conversations', label: 'Konuşmalar', icon: MessagesSquare },
+  { to: '/leads', label: 'Leadler', icon: Target },
+  { to: '/analytics', label: 'Analiz', icon: BarChart3 },
+  { to: '/whatsapp', label: 'WhatsApp', icon: Smartphone },
 ]
 
 export function AppSidebar() {
   const nav = useNavigate()
-  const loc = useLocation()
   return (
     <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-border bg-surface">
       <div className="h-14 px-5 flex items-center border-b border-border">
@@ -48,7 +46,7 @@ export function AppSidebar() {
       </nav>
       <div className="p-3 border-t border-border">
         <button
-          onClick={() => { clearToken(); nav('/admin-new/login') }}
+          onClick={() => { clearToken(); nav('/login') }}
           className="flex items-center gap-3 px-3 h-9 w-full rounded-md text-sm text-ink-muted hover:bg-bg hover:text-ink"
         >
           <LogOut className="w-4 h-4" /> Çıkış
