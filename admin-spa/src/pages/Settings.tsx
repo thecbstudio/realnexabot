@@ -16,7 +16,7 @@ export function Settings() {
   const [status, setStatus] = useState({ text: 'Otomatik kaydeder', color: 'text-ink-muted' })
   const saveTimer = useRef<any>(null)
 
-  useEffect(() => { if (bizId) api.getBusiness(bizId).then(setBiz) }, [bizId])
+  useEffect(() => { if (bizId) api.getBusinessFull(bizId).then(setBiz) }, [bizId])
 
   const update = (patch: any) => {
     setBiz((b: any) => ({ ...b, ...patch }))
@@ -322,7 +322,7 @@ function AppearanceTab({ biz, update, bizId }: any) {
     const blob = await new Promise<Blob>((r) => out.toBlob(b => r(b!), 'image/jpeg', 0.88))
     setCropOpen(false)
     await api.uploadAvatar(bizId, new File([blob], 'avatar.jpg', { type: 'image/jpeg' }))
-    const fresh = await api.getBusiness(bizId)
+    const fresh = await api.getBusinessFull(bizId)
     update({ avatar_url: fresh.avatar_url })
   }
 
