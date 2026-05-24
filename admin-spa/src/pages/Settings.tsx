@@ -335,16 +335,36 @@ function AppearanceTab({ biz, update, bizId }: any) {
       <div className="space-y-5 min-w-0">
         <Card><CardContent className="p-5 space-y-4">
           <h3 className="text-sm font-semibold text-ink mb-2">Avatar</h3>
-          <div className="flex items-center gap-3">
-            <div className="w-16 h-16 rounded-full border border-border bg-white flex items-center justify-center overflow-hidden text-2xl shrink-0">
-              {biz.avatar_url ? <img src={biz.avatar_url} className="w-full h-full object-cover" /> : (biz.emoji || '🤖')}
-            </div>
-            <label className="flex-1">
-              <input type="file" accept="image/*" className="hidden" onChange={onFile} />
-              <Button variant="secondary" asChild><span className="cursor-pointer"><Upload className="w-4 h-4" />Resim seç (kırp + yerleştir)</span></Button>
-            </label>
-            {biz.avatar_url && <Button variant="danger" size="sm" onClick={() => confirm('Sil?') && update({ avatar_url: '' })}><Trash2 className="w-4 h-4" /></Button>}
+          <div className="flex gap-2 p-1 bg-bg rounded-md border border-border w-fit">
+            <button type="button" onClick={() => update({ avatar_url: '' })}
+              className={`px-3 py-1.5 text-sm rounded transition-colors ${!biz.avatar_url ? 'bg-surface text-ink font-medium shadow-card' : 'text-ink-muted hover:text-ink'}`}>
+              Emoji
+            </button>
+            <button type="button" onClick={() => document.getElementById('avatarFileInput')?.click()}
+              className={`px-3 py-1.5 text-sm rounded transition-colors ${biz.avatar_url ? 'bg-surface text-ink font-medium shadow-card' : 'text-ink-muted hover:text-ink'}`}>
+              Foto
+            </button>
           </div>
+
+          {!biz.avatar_url ? (
+            <div className="flex items-center gap-3">
+              <div className="w-16 h-16 rounded-full border border-border bg-bg flex items-center justify-center text-2xl shrink-0">
+                {biz.emoji || '🤖'}
+              </div>
+              <Input maxLength={4} value={biz.emoji || ''} onChange={e => update({ emoji: e.target.value })} placeholder="🤖 / 🏢 / 🌊" className="flex-1 text-2xl text-center" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="w-16 h-16 rounded-full border border-border bg-white flex items-center justify-center overflow-hidden shrink-0">
+                <img src={biz.avatar_url} className="w-full h-full object-cover" />
+              </div>
+              <label className="flex-1">
+                <Button variant="secondary" asChild><span className="cursor-pointer" onClick={() => document.getElementById('avatarFileInput')?.click()}><Upload className="w-4 h-4" />Resmi değiştir</span></Button>
+              </label>
+              <Button variant="danger" size="sm" onClick={() => confirm('Foto silinsin, emojiye dön?') && update({ avatar_url: '' })}><Trash2 className="w-4 h-4" />Sil</Button>
+            </div>
+          )}
+          <input id="avatarFileInput" type="file" accept="image/*" className="hidden" onChange={onFile} />
         </CardContent></Card>
 
         <Card><CardContent className="p-5 space-y-4">
