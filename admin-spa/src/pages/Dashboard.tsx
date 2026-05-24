@@ -18,7 +18,7 @@ export function Dashboard() {
       api.kbStats(bizId),
       api.listLeads(),
       api.listConversations(),
-      api.getBusiness(bizId),
+      api.getBusinessFull(bizId),
     ]).then(([d30, d60, kb, leads, convs, biz]) => {
       const msg30 = d30.conversations.reduce((s, x) => s + parseInt(x.messages || 0), 0)
       const ses30 = d30.conversations.reduce((s, x) => s + parseInt(x.sessions || 0), 0)
