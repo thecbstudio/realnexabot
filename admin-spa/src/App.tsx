@@ -4,24 +4,30 @@ import { AppSidebar } from '@/components/AppSidebar'
 import { AppHeader } from '@/components/AppHeader'
 import { Login } from '@/pages/Login'
 import { Dashboard } from '@/pages/Dashboard'
-import { Placeholder } from '@/pages/Placeholder'
+import { Customize } from '@/pages/Customize'
+import { Test } from '@/pages/Test'
+import { Knowledge } from '@/pages/Knowledge'
+import { Leads } from '@/pages/Leads'
+import { Conversations } from '@/pages/Conversations'
+import { Analytics } from '@/pages/Analytics'
+import { WhatsApp } from '@/pages/WhatsApp'
 
 function AuthGate() {
   const loc = useLocation()
-  if (!isAuthed()) return <Navigate to="/admin-new/login" replace state={{ from: loc.pathname }} />
+  if (!isAuthed()) return <Navigate to="/login" replace state={{ from: loc.pathname }} />
   return <Outlet />
 }
 
 function Layout() {
   const titleMap: Record<string, string> = {
-    '/admin-new': 'Genel Bakış',
-    '/admin-new/test': 'Test Bot',
-    '/admin-new/knowledge': 'Bilgi Tabanı',
-    '/admin-new/customize': 'Widget Özelleştirme',
-    '/admin-new/conversations': 'Konuşmalar',
-    '/admin-new/leads': 'Leadler',
-    '/admin-new/analytics': 'Analiz',
-    '/admin-new/whatsapp': 'WhatsApp Kurulum',
+    '/': 'Genel Bakış',
+    '/test': 'Test Bot',
+    '/knowledge': 'Bilgi Tabanı',
+    '/customize': 'Widget Özelleştirme',
+    '/conversations': 'Konuşmalar',
+    '/leads': 'Leadler',
+    '/analytics': 'Analiz',
+    '/whatsapp': 'WhatsApp Kurulum',
   }
   const loc = useLocation()
   const title = titleMap[loc.pathname] || ''
@@ -48,13 +54,13 @@ export default function App() {
         <Route element={<AuthGate />}>
           <Route element={<Layout />}>
             <Route index element={<Dashboard />} />
-            <Route path="test" element={<Placeholder title="Test Bot" />} />
-            <Route path="knowledge" element={<Placeholder title="Bilgi Tabanı" />} />
-            <Route path="customize" element={<Placeholder title="Widget Özelleştirme" />} />
-            <Route path="conversations" element={<Placeholder title="Konuşmalar" />} />
-            <Route path="leads" element={<Placeholder title="Leadler" />} />
-            <Route path="analytics" element={<Placeholder title="Analiz" />} />
-            <Route path="whatsapp" element={<Placeholder title="WhatsApp" />} />
+            <Route path="test" element={<Test />} />
+            <Route path="knowledge" element={<Knowledge />} />
+            <Route path="customize" element={<Customize />} />
+            <Route path="conversations" element={<Conversations />} />
+            <Route path="leads" element={<Leads />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="whatsapp" element={<WhatsApp />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
