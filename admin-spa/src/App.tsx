@@ -4,7 +4,7 @@ import { AppSidebar } from '@/components/AppSidebar'
 import { AppHeader } from '@/components/AppHeader'
 import { Login } from '@/pages/Login'
 import { Dashboard } from '@/pages/Dashboard'
-import { Customize } from '@/pages/Customize'
+import { Settings } from '@/pages/Settings'
 import { Test } from '@/pages/Test'
 import { Knowledge } from '@/pages/Knowledge'
 import { Leads } from '@/pages/Leads'
@@ -23,11 +23,11 @@ function Layout() {
     '/': 'Genel Bakış',
     '/test': 'Test Bot',
     '/knowledge': 'Bilgi Tabanı',
-    '/customize': 'Widget Özelleştirme',
+    '/settings': 'İşletme Ayarları',
     '/conversations': 'Konuşmalar',
     '/leads': 'Leadler',
     '/analytics': 'Analiz',
-    '/whatsapp': 'WhatsApp Kurulum',
+    '/whatsapp': 'WhatsApp',
   }
   const loc = useLocation()
   const title = titleMap[loc.pathname] || ''
@@ -56,7 +56,7 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="test" element={<Test />} />
             <Route path="knowledge" element={<Knowledge />} />
-            <Route path="customize" element={<Customize />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="conversations" element={<Conversations />} />
             <Route path="leads" element={<Leads />} />
             <Route path="analytics" element={<Analytics />} />
