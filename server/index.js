@@ -57,6 +57,7 @@ app.use(cors({
 /* ─── MIDDLEWARE ────────────────────────────────────────────────────────── */
 app.use(express.json({ limit: '10kb' }));
 const ADMIN_SPA_DIR = path.join(__dirname, '..', 'public', 'admin-app');
+app.get(/^\/admin-new(\/.*)?$/, (req, res) => res.redirect(301, req.url.replace('/admin-new', '/admin')));
 app.get(/^\/admin(\/.*)?$/, (_req, res) => {
   const indexHtml = path.join(ADMIN_SPA_DIR, 'index.html');
   res.sendFile(indexHtml, err => {
