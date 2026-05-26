@@ -46,7 +46,7 @@ export const api = {
   },
 
   // Leads
-  listLeads: () => request<any[]>('/api/leads'),
+  listLeads: (bizId: string) => request<any[]>(`/api/leads?bizId=${bizId}`),
   updateLead: (id: number, body: { status?: string; notes?: string }) => request(`/api/lead/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteLead: (id: number) => request(`/api/lead/${id}`, { method: 'DELETE' }),
 
