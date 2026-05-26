@@ -22,7 +22,6 @@ function normalizeUrl(u) {
   try {
     const x = new URL(u);
     x.hash = '';
-    // strip common tracking params
     ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','fbclid','gclid'].forEach(p => x.searchParams.delete(p));
     return x.toString();
   } catch { return null; }
@@ -69,11 +68,47 @@ function isDisallowed(url, disallow) {
   } catch { return false; }
 }
 
+/* Extract string values from Next.js __NEXT_DATA__ JSON */
+function extractNextData($) {
+  try {
+    const script = $('script#__NEXT_DATA__').html();
+    if (!script) return '';
+    const data = JSON.parse(script);
+    const strings = [];
+    function walk(obj, depth) {
+      if (depth > 6) return;
+      if (typeof obj === 'string') {
+        const s = obj.trim();
+        if (s.length >= 15 && s.length < 1000 &&
+            !s.startsWith('http') && !s.startsWith('/') &&
+            !/^[A-Z][a-zA-Z]+$/.test(s) && !/^\d+$/.test(s)) {
+          strings.push(s);
+        }
+      } else if (Array.isArray(obj)) {
+        obj.forEach(item => walk(item, depth + 1));
+      } else if (obj && typeof obj === 'object') {
+        Object.values(obj).forEach(v => walk(v, depth + 1));
+      }
+    }
+    walk(data.props || data, 0);
+    return strings.join(' ');
+  } catch { return ''; }
+}
+
 function extractText($) {
+  /* Collect meta + OG tags before stripping anything */
+  const ogTitle = ($('meta[property="og:title"]').attr('content') || '').trim();
+  const metaDesc = ($('meta[name="description"]').attr('content') ||
+                    $('meta[property="og:description"]').attr('content') || '').trim();
+  const nextData = extractNextData($);
+
   $('script,style,noscript,iframe,svg,nav,footer,header,form').remove();
-  const title = ($('title').first().text() || '').trim();
+  const title = ($('title').first().text() || ogTitle).trim();
   const body = $('body').text().replace(/\s+/g, ' ').trim();
-  return { title, text: body };
+
+  /* Merge: visible body + meta description + __NEXT_DATA__ strings */
+  const text = [body, metaDesc, nextData].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  return { title, text };
 }
 
 function extractLinks($, baseUrl) {
@@ -92,7 +127,6 @@ function extractLinks($, baseUrl) {
 
 /**
  * Crawl a site BFS, return [{ url, title, text }].
- * Stops at maxPages. Same-origin only. Respects robots.txt for common disallow rules.
  */
 async function crawlSite(startUrl, opts = {}) {
   const maxPages = Math.min(Math.max(parseInt(opts.maxPages) || 25, 1), 100);
@@ -129,7 +163,8 @@ async function crawlSite(startUrl, opts = {}) {
       if (html.length > 2_000_000) continue;
       const $ = cheerio.load(html);
       const { title, text } = extractText($);
-      if (text.length >= 100) results.push({ url, title, text });
+      /* Lowered from 100 → 30 to capture meta-only SPA pages */
+      if (text.length >= 30) results.push({ url, title, text });
 
       if (!sitemapUrls) {
         const links = extractLinks($, url);
@@ -137,12 +172,11 @@ async function crawlSite(startUrl, opts = {}) {
           if (visited.has(link) || queue.includes(link)) continue;
           if (!sameOrigin(link, start)) continue;
           if (isDisallowed(link, disallow)) continue;
-          // skip common asset paths
           if (/\.(jpg|jpeg|png|gif|svg|webp|pdf|zip|mp4|mp3|css|js|ico|woff|ttf)(\?|$)/i.test(link)) continue;
           queue.push(link);
         }
       }
-    } catch (e) { /* skip individual page failures */ }
+    } catch { /* skip individual page failures */ }
   }
 
   return results;
