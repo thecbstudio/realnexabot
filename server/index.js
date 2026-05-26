@@ -689,12 +689,32 @@ app.post('/api/kb/upload-url/:businessId', requireAdmin, async (req, res) => {
   try {
     const { url } = req.body || {};
     if (!url || !/^https?:\/\//.test(url)) return res.status(400).json({ error: 'Valid URL required' });
-    const r = await fetch(url, { headers: { 'User-Agent': 'NexaBot KB/1.0' } });
-    if (!r.ok) return res.status(400).json({ error: `Fetch failed: ${r.status}` });
-    const html = await r.text();
-    const $ = cheerio.load(html);
-    $('script,style,nav,footer,header,noscript').remove();
-    const text = $('body').text().replace(/\s+/g, ' ').trim();
+
+    let text = '';
+
+    // Try Jina Reader first - handles SPA/JS-rendered pages
+    try {
+      const jr = await fetch('https://r.jina.ai/' + url, {
+        headers: { 'User-Agent': 'NexaBot KB/1.0', 'Accept': 'text/plain' },
+        signal: AbortSignal.timeout(25000)
+      });
+      if (jr.ok) {
+        const raw = await jr.text();
+        text = raw.replace(/\s+/g, ' ').trim();
+      }
+    } catch (jinaErr) { console.warn('[kb url jina]', jinaErr.message); }
+
+    // Fallback: direct fetch + cheerio for simple HTML sites
+    if (text.length < 200) {
+      const r = await fetch(url, { headers: { 'User-Agent': 'NexaBot KB/1.0' }, signal: AbortSignal.timeout(15000) });
+      if (!r.ok) return res.status(400).json({ error: 'Fetch failed: ' + r.status });
+      const html = await r.text();
+      const $ = cheerio.load(html);
+      $('script,style,nav,footer,header,noscript').remove();
+      const fallback = $('body').text().replace(/\s+/g, ' ').trim();
+      if (fallback.length > text.length) text = fallback;
+    }
+
     if (!text) return res.status(400).json({ error: 'No content extracted' });
     const result = await kb.addSource(req.params.businessId, 'url', url, text);
     res.json({ ok: true, ...result });
@@ -702,7 +722,7 @@ app.post('/api/kb/upload-url/:businessId', requireAdmin, async (req, res) => {
     console.error('[kb url]', e.message);
     res.status(500).json({ error: e.message });
   }
-});
+})
 
 app.post('/api/kb/upload-text/:businessId', requireAdmin, async (req, res) => {
   try {
