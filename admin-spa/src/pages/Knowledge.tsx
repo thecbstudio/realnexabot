@@ -45,7 +45,7 @@ export function Knowledge() {
   }
 
   const [crawlUrl, setCrawlUrl] = useState('')
-  const [maxPages, setMaxPages] = useState(25)
+  const [maxPages, setMaxPages] = useState(() => parseInt(localStorage.getItem('kb_maxPages') || '25'))
   const crawl = async () => {
     if (!crawlUrl || !bizId) return
     setBusy(true); setStatus('Site taranıyor (1-3 dakika)...')
@@ -97,7 +97,7 @@ export function Knowledge() {
               <Input placeholder="https://siteniz.com" value={crawlUrl} onChange={e => setCrawlUrl(e.target.value)} />
               <div className="flex items-center gap-3">
                 <label className="text-sm text-ink-muted">Maks. sayfa: {maxPages}</label>
-                <input type="range" min={5} max={100} step={5} value={maxPages} onChange={e => setMaxPages(parseInt(e.target.value))} className="flex-1 max-w-xs" />
+                <input type="range" min={5} max={100} step={5} value={maxPages} onChange={e => { const v = parseInt(e.target.value); setMaxPages(v); localStorage.setItem('kb_maxPages', String(v)); }} className="flex-1 max-w-xs" />
               </div>
               <Button onClick={crawl} disabled={busy || !crawlUrl}><Bug className="w-4 h-4" />Siteyi tara</Button>
             </TabsContent>
