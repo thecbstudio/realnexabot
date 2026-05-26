@@ -68,66 +68,43 @@ function isDisallowed(url, disallow) {
   } catch { return false; }
 }
 
-/* Extract string values from Next.js __NEXT_DATA__ JSON */
-function extractNextData($) {
-  try {
-    const script = $('script#__NEXT_DATA__').html();
-    if (!script) return '';
-    const data = JSON.parse(script);
-    const strings = [];
-    function walk(obj, depth) {
-      if (depth > 6) return;
-      if (typeof obj === 'string') {
-        const s = obj.trim();
-        if (s.length >= 15 && s.length < 1000 &&
-            !s.startsWith('http') && !s.startsWith('/') &&
-            !/^[A-Z][a-zA-Z]+$/.test(s) && !/^\d+$/.test(s)) {
-          strings.push(s);
-        }
-      } else if (Array.isArray(obj)) {
-        obj.forEach(item => walk(item, depth + 1));
-      } else if (obj && typeof obj === 'object') {
-        Object.values(obj).forEach(v => walk(v, depth + 1));
-      }
-    }
-    walk(data.props || data, 0);
-    return strings.join(' ');
-  } catch { return ''; }
-}
-
-function extractText($) {
-  /* Collect meta + OG tags before stripping anything */
-  const ogTitle = ($('meta[property="og:title"]').attr('content') || '').trim();
-  const metaDesc = ($('meta[name="description"]').attr('content') ||
-                    $('meta[property="og:description"]').attr('content') || '').trim();
-  const nextData = extractNextData($);
-
-  $('script,style,noscript,iframe,svg,nav,footer,header,form').remove();
-  const title = ($('title').first().text() || ogTitle).trim();
-  const body = $('body').text().replace(/\s+/g, ' ').trim();
-
-  /* Merge: visible body + meta description + __NEXT_DATA__ strings */
-  const text = [body, metaDesc, nextData].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
-  return { title, text };
-}
-
-function extractLinks($, baseUrl) {
+function extractLinks(html, baseUrl) {
   const links = new Set();
-  $('a[href]').each((_, a) => {
-    const href = $(a).attr('href');
-    if (!href) return;
-    try {
-      const abs = new URL(href, baseUrl).toString();
-      const n = normalizeUrl(abs);
-      if (n) links.add(n);
-    } catch {}
-  });
+  try {
+    const $ = cheerio.load(html);
+    $('a[href]').each((_, a) => {
+      const href = $(a).attr('href');
+      if (!href) return;
+      try {
+        const abs = new URL(href, baseUrl).toString();
+        const n = normalizeUrl(abs);
+        if (n) links.add(n);
+      } catch {}
+    });
+  } catch {}
   return [...links];
 }
 
-/**
- * Crawl a site BFS, return [{ url, title, text }].
- */
+/* Fetch page text via Jina Reader (handles SPA/JS-rendered pages) */
+async function fetchWithJina(url) {
+  const r = await fetch('https://r.jina.ai/' + url, {
+    headers: { 'User-Agent': UA, 'Accept': 'text/plain' },
+    signal: AbortSignal.timeout(25000)
+  });
+  if (!r.ok) throw new Error('Jina ' + r.status);
+  const text = (await r.text()).replace(/\s+/g, ' ').trim();
+  return text;
+}
+
+/* Fallback: plain cheerio extraction for simple HTML */
+function extractTextCheerio(html) {
+  const $ = cheerio.load(html);
+  $('script,style,noscript,iframe,svg,nav,footer,header,form').remove();
+  const title = $('title').first().text().trim();
+  const text = $('body').text().replace(/\s+/g, ' ').trim();
+  return { title, text };
+}
+
 async function crawlSite(startUrl, opts = {}) {
   const maxPages = Math.min(Math.max(parseInt(opts.maxPages) || 25, 1), 100);
   const start = normalizeUrl(startUrl);
@@ -155,34 +132,17 @@ async function crawlSite(startUrl, opts = {}) {
     visited.add(url);
 
     try {
+      /* Fetch raw HTML first to extract links (needed for BFS) */
       const r = await fetchWithTimeout(url);
       if (!r.ok) continue;
       const ct = (r.headers.get('content-type') || '').toLowerCase();
       if (!ct.includes('text/html')) continue;
       const html = await r.text();
       if (html.length > 2_000_000) continue;
-      const $ = cheerio.load(html);
-      let { title, text } = extractText($);
 
-      /* If content too short, try Jina Reader (handles JS-rendered/SPA pages) */
-      if (text.length < 200) {
-        try {
-          const jr = await fetch('https://r.jina.ai/' + url, {
-            headers: { 'User-Agent': 'NexaBot Crawler/1.0', 'Accept': 'text/plain' },
-            signal: AbortSignal.timeout(20000)
-          });
-          if (jr.ok) {
-            const jinaText = (await jr.text()).replace(/\s+/g, ' ').trim();
-            if (jinaText.length > text.length) text = jinaText;
-          }
-        } catch {}
-      }
-
-      if (text.length >= 30) results.push({ url, title, text });
-
+      /* Extract links for BFS before Jina call */
       if (!sitemapUrls) {
-        const links = extractLinks($, url);
-        for (const link of links) {
+        for (const link of extractLinks(html, url)) {
           if (visited.has(link) || queue.includes(link)) continue;
           if (!sameOrigin(link, start)) continue;
           if (isDisallowed(link, disallow)) continue;
@@ -190,6 +150,22 @@ async function crawlSite(startUrl, opts = {}) {
           queue.push(link);
         }
       }
+
+      /* Get page text via Jina (works for both normal and SPA sites) */
+      let title = '';
+      let text = '';
+      try {
+        text = await fetchWithJina(url);
+        const titleMatch = text.match(/^Title:\s*(.+)/m);
+        if (titleMatch) title = titleMatch[1].trim();
+      } catch {
+        /* Jina failed, fall back to cheerio */
+        const extracted = extractTextCheerio(html);
+        title = extracted.title;
+        text = extracted.text;
+      }
+
+      if (text.length >= 30) results.push({ url, title, text });
     } catch { /* skip individual page failures */ }
   }
 
