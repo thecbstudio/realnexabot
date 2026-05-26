@@ -162,8 +162,22 @@ async function crawlSite(startUrl, opts = {}) {
       const html = await r.text();
       if (html.length > 2_000_000) continue;
       const $ = cheerio.load(html);
-      const { title, text } = extractText($);
-      /* Lowered from 100 → 30 to capture meta-only SPA pages */
+      let { title, text } = extractText($);
+
+      /* If content too short, try Jina Reader (handles JS-rendered/SPA pages) */
+      if (text.length < 200) {
+        try {
+          const jr = await fetch('https://r.jina.ai/' + url, {
+            headers: { 'User-Agent': 'NexaBot Crawler/1.0', 'Accept': 'text/plain' },
+            signal: AbortSignal.timeout(20000)
+          });
+          if (jr.ok) {
+            const jinaText = (await jr.text()).replace(/\s+/g, ' ').trim();
+            if (jinaText.length > text.length) text = jinaText;
+          }
+        } catch {}
+      }
+
       if (text.length >= 30) results.push({ url, title, text });
 
       if (!sitemapUrls) {
