@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, THead, TBody, TR, TH, TD } from '@/components/ui/table'
 import { api } from '@/lib/api'
+import { useActiveBusinessId } from '@/components/AppHeader'
 import { Trash2 } from 'lucide-react'
 
 const STATUS_META: Record<string, { label: string; variant: any }> = {
@@ -16,15 +17,17 @@ const STATUS_META: Record<string, { label: string; variant: any }> = {
 }
 
 export function Leads() {
+  const bizId = useActiveBusinessId()
   const [all, setAll] = useState<any[]>([])
   const [bizMap, setBizMap] = useState<Record<string, string>>({})
   const [search, setSearch] = useState('')
   const [statusF, setStatusF] = useState('')
 
   useEffect(() => {
+    if (!bizId) return
     api.listBusinesses().then(bs => setBizMap(Object.fromEntries(bs.map(b => [b.id, b.name]))))
-    api.listLeads().then(setAll)
-  }, [])
+    api.listLeads(bizId).then(setAll)
+  }, [bizId])
 
   const filtered = all.filter(l => {
     if (statusF && (l.status || 'new') !== statusF) return false
