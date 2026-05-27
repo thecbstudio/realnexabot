@@ -167,13 +167,15 @@ function saveLead(businessId, sessionId, message) {
 }
 
 function getAllLeads(bizId) {
-  if (bizId) return pool.query("SELECT id, business_id, session_id, message, timestamp, COALESCE(status,'new') AS status, COALESCE(notes,'') AS notes FROM leads WHERE business_id = $1 ORDER BY timestamp DESC LIMIT 500", [bizId]);
-  return pool.query("SELECT id, business_id, session_id, message, timestamp, COALESCE(status,'new') AS status, COALESCE(notes,'') AS notes FROM leads ORDER BY timestamp DESC LIMIT 500")
-    .then(r => r.rows.map(row => ({
-      id: row.id, business_id: row.business_id, session_id: row.session_id, message: row.message, timestamp: row.timestamp,
-      status: row.status, notes: row.notes,
-      businessId: row.business_id, sessionId: row.session_id
-    })));
+  const q = bizId
+    ? pool.query("SELECT id, business_id, session_id, message, timestamp, COALESCE(status,'new') AS status, COALESCE(notes,'') AS notes FROM leads WHERE business_id = $1 ORDER BY timestamp DESC LIMIT 500", [bizId])
+    : pool.query("SELECT id, business_id, session_id, message, timestamp, COALESCE(status,'new') AS status, COALESCE(notes,'') AS notes FROM leads ORDER BY timestamp DESC LIMIT 500");
+  return q.then(r => r.rows.map(row => ({
+    id: row.id, business_id: row.business_id, session_id: row.session_id,
+    message: row.message, timestamp: row.timestamp,
+    status: row.status, notes: row.notes,
+    businessId: row.business_id, sessionId: row.session_id
+  })));
 }
 
 function updateLead(id, status, notes) {
