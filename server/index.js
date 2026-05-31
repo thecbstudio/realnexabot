@@ -288,7 +288,7 @@ function fallbackReply(message, biz) {
   return `Bu konuda daha fazla yardım için ${name} ile doğrudan iletişime geçmenizi öneririm.`;
 }
 
-const LEAD_PATTERN = /randevu|rezervasyon|appointment|book\b|fiyat|teklif|quote|price.*please|ne kadar/i;
+const LEAD_PATTERN = /randevu\s*(al|iste|var\s*m|verir)|rezervasyon\s*(yap|iste|al)|teklif\s*(al|iste|ver)|(fiyat|ücret|ucret)\s*(teklif|listesi|öğren|ogren|alabilir|gönder|gonder)|(ne kadar|kaca|kaça)\s*\S*\s*(tutar|maliyet|ücret|ucret|olur)|appointment|booking|quote\s*request/i;
 function isLead(message) { return LEAD_PATTERN.test(message); }
 
 /* ─── PAGE ROUTES ───────────────────────────────────────────────────────── */
