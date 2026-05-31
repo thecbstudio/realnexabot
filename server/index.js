@@ -72,6 +72,31 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 const JWT_SECRET = process.env.ADMIN_TOKEN;
 if (!JWT_SECRET) { console.error('FATAL: ADMIN_TOKEN env required'); process.exit(1); }
 
+/* ─── SSRF GUARD ─────────────────────────────────────────────────────────── */
+function isPrivateUrl(url) {
+  try {
+    const h = new URL(url).hostname.toLowerCase();
+    if (h === 'localhost' || h === '0.0.0.0' || h.endsWith('.local') || h.endsWith('.internal')) return true;
+    if (/^(127\.|10\.|192\.168\.|169\.254\.|::1|fc00:|fe80:)/.test(h)) return true;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+    return false;
+  } catch { return true; }
+}
+
+/* ─── LOGIN RATE LIMITER ─────────────────────────────────────────────────── */
+const loginAttempts = new Map();
+function loginRateLimit(req, res, next) {
+  const ip = req.ip || 'unknown';
+  const now = Date.now();
+  let e = loginAttempts.get(ip);
+  if (!e) { e = { count: 0, resetAt: now + 900000, lockedUntil: 0 }; loginAttempts.set(ip, e); }
+  if (now < e.lockedUntil) return res.status(429).json({ error: 'Cok fazla deneme. 15 dakika sonra tekrar deneyin.' });
+  if (now > e.resetAt) { e.count = 0; e.resetAt = now + 900000; }
+  e.count++;
+  if (e.count > 6) { e.lockedUntil = now + 900000; return res.status(429).json({ error: 'Cok fazla deneme. 15 dakika kilitlendi.' }); }
+  next();
+}
+
 function requireAdmin(req, res, next) {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
@@ -283,6 +308,7 @@ app.get('/embed/:businessId', async (req, res) => {
   const host = req.headers.host || '';
   if (!/^[a-zA-Z0-9.\-:]+$/.test(host)) return res.status(400).type('application/javascript').send('/* invalid host */');
   const businessId = req.params.businessId;
+  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(businessId)) return res.status(400).type('application/javascript').send('/* invalid businessId */');
   const baseUrl = process.env.BASE_URL || `${req.protocol}://${host}`;
   let position = 'right:20px';
   let color = '#C9A84C';
@@ -313,7 +339,7 @@ app.get('/embed/:businessId', async (req, res) => {
 });
 
 /* ─── AUTH ENDPOINTS ────────────────────────────────────────────────────── */
-app.post('/api/admin/login', async (req, res) => {
+app.post('/api/admin/login', loginRateLimit, async (req, res) => {
   const { password } = req.body || {};
   if (!password) return res.status(400).json({ error: 'Password required' });
   let match = false;
@@ -391,6 +417,7 @@ app.post('/api/kb/crawl/:businessId', requireAdmin, async (req, res) => {
   try {
     const { startUrl, maxPages } = req.body || {};
     if (!startUrl || !/^https?:\/\//.test(startUrl)) return res.status(400).json({ error: 'Valid startUrl required' });
+    if (isPrivateUrl(startUrl)) return res.status(400).json({ error: 'Ic ag / ozel adreslere izin verilmez' });
     const pages = await crawler.crawlSite(startUrl, { maxPages });
     let totalChunks = 0;
     for (const p of pages) {
@@ -692,6 +719,8 @@ app.post('/api/kb/upload-url/:businessId', requireAdmin, async (req, res) => {
     if (!url || !/^https?:\/\//.test(url)) return res.status(400).json({ error: 'Valid URL required' });
 
     let text = '';
+
+    if (isPrivateUrl(url)) return res.status(400).json({ error: 'Ic ag / ozel adreslere izin verilmez' });
 
     // Try Jina Reader first - handles SPA/JS-rendered pages
     try {
