@@ -38,7 +38,7 @@ export const api = {
   deleteBusiness: (id: string) => request<any>(`/api/business/${id}`, { method: 'DELETE' }),
 
   // Conversations
-  listConversations: () => request<any[]>('/api/conversations'),
+  listConversations: (bizId?: string) => request<any[]>(`/api/conversations${bizId ? `?bizId=${bizId}` : ''}`),
   getConversation: (sid: string) => request<any>(`/api/conversation/${sid}`),
   exportConversations: async (bizId: string) => {
     const r = await fetch(`/api/conversations/export/${bizId}`, { headers: { Authorization: `Bearer ${getToken()}` } })
