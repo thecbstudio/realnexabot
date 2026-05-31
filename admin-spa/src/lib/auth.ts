@@ -1,19 +1,18 @@
-const KEYS = ['nexa_admin_token', 'nxbt']
+const TOKEN_KEY = 'nxbt'
+
+// eski key temizligi (tek seferlik)
+try { localStorage.removeItem('nexa_admin_token') } catch {}
 
 export function getToken(): string | null {
-  for (const k of KEYS) {
-    const v = localStorage.getItem(k)
-    if (v) return v
-  }
-  return null
+  return localStorage.getItem(TOKEN_KEY)
 }
 
 export function setToken(token: string) {
-  KEYS.forEach(k => localStorage.setItem(k, token))
+  localStorage.setItem(TOKEN_KEY, token)
 }
 
 export function clearToken() {
-  KEYS.forEach(k => localStorage.removeItem(k))
+  localStorage.removeItem(TOKEN_KEY)
 }
 
 export function isAuthed(): boolean {
