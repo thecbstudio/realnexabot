@@ -62,13 +62,13 @@ async function addSource(businessId, sourceType, sourceName, fullText) {
     [businessId, sourceType, sourceName, fullText.length, chunks.length]
   );
   const sourceId = src.rows[0].id;
-  for (let i = 0; i < chunks.length; i++) {
-    await pool.query(
-      `INSERT INTO kb_chunks (source_id, business_id, position, chunk_text, tsv)
-       VALUES ($1, $2, $3, $4, to_tsvector('simple', $4))`,
-      [sourceId, businessId, i, chunks[i]]
-    );
-  }
+  // Bulk insert via unnest (tek round-trip)
+  await pool.query(
+    `INSERT INTO kb_chunks (source_id, business_id, position, chunk_text, tsv)
+     SELECT $1, $2, ord - 1, chunk, to_tsvector('simple', chunk)
+     FROM unnest($3::text[]) WITH ORDINALITY AS t(chunk, ord)`,
+    [sourceId, businessId, chunks]
+  );
   return { sourceId, chunkCount: chunks.length };
 }
 
