@@ -54,6 +54,7 @@ async function init() {
       notes        TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_leads_ts ON leads(timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_leads_biz ON leads(business_id, timestamp DESC);
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'new';
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT '';
   `);
