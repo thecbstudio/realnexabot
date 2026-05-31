@@ -370,8 +370,9 @@ app.get('/api/conversation/:sessionId', requireAdmin, async (req, res) => {
 });
 
 /* ─── ADMIN: LEADS & ANALYTICS ──────────────────────────────────────────── */
-app.get('/api/leads', requireAdmin, async (_req, res) => {
-  res.json(await db.getAllLeads());
+app.get('/api/leads', requireAdmin, async (req, res) => {
+  const { bizId } = req.query;
+  res.json(await db.getAllLeads(bizId || null));
 });
 
 app.get('/api/analytics', requireAdmin, async (_req, res) => {
