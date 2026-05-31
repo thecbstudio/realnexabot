@@ -136,6 +136,13 @@ setInterval(() => {
 /* ─── ANTHROPIC ─────────────────────────────────────────────────────────── */
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || '' });
 
+function callClaudeWithTimeout(opts, ms) {
+  return Promise.race([
+    anthropic.messages.create(opts),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('Claude timeout')), ms || 25000))
+  ]);
+}
+
 /* ─── DEMO BUSINESS ─────────────────────────────────────────────────────── */
 const DEMO_BUSINESS = {
   id:        'demo',
@@ -385,8 +392,9 @@ app.get('/api/business/:id', async (req, res) => {
 });
 
 /* ─── ADMIN: CONVERSATIONS ──────────────────────────────────────────────── */
-app.get('/api/conversations', requireAdmin, async (_req, res) => {
-  res.json(await db.getAllConversationSummaries());
+app.get('/api/conversations', requireAdmin, async (req, res) => {
+  const { bizId } = req.query;
+  res.json(await db.getAllConversationSummaries(bizId || null));
 });
 
 app.get('/api/conversation/:sessionId', requireAdmin, async (req, res) => {
@@ -494,7 +502,7 @@ app.post('/api/webhook/whatsapp/:businessId', express.raw({ type: 'application/j
 
     let reply = '';
     try {
-      const response = await anthropic.messages.create({
+      const response = await callClaudeWithTimeout({
         model: 'claude-sonnet-4-5-20250929',
         max_tokens: 1024,
         system: systemPrompt,
@@ -524,8 +532,7 @@ app.post('/api/webhook/whatsapp/:businessId', express.raw({ type: 'application/j
 /* --- DAILY ANALYTICS --- */
 app.get('/api/analytics-daily/:businessId', requireAdmin, async (req, res) => {
   try {
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 2 });
+    const pool = db.pool;
     const days = parseInt(req.query.days) || 30;
     const since = Date.now() - days * 86400000;
     const conv = await pool.query(
@@ -541,7 +548,7 @@ app.get('/api/analytics-daily/:businessId', requireAdmin, async (req, res) => {
        GROUP BY day ORDER BY day`,
       [req.params.businessId, since]
     );
-    await pool.end();
+    /* shared pool, no end */
     res.json({ days, conversations: conv.rows, leads: leads.rows });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -549,14 +556,13 @@ app.get('/api/analytics-daily/:businessId', requireAdmin, async (req, res) => {
 /* --- CONVERSATION EXPORT (CSV) --- */
 app.get('/api/conversations/export/:businessId', requireAdmin, async (req, res) => {
   try {
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 2 });
+    const pool = db.pool;
     const r = await pool.query(
       `SELECT session_id, messages, last_ts, msg_count
        FROM conversations WHERE business_id = $1 ORDER BY last_ts DESC LIMIT 2000`,
       [req.params.businessId]
     );
-    await pool.end();
+    /* shared pool, no end */
     const csv = ['session_id,timestamp,role,content'];
     for (const row of r.rows) {
       const msgs = Array.isArray(row.messages) ? row.messages : [];
@@ -580,8 +586,7 @@ app.get('/admin/conversations', (_req, res) => res.sendFile(path.join(__dirname,
 /* --- BACKFILL ANALYTICS from conversations + leads --- */
 app.post('/api/admin/backfill-analytics', requireAdmin, async (_req, res) => {
   try {
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 2 });
+    const pool = db.pool;
     await pool.query('TRUNCATE analytics');
     await pool.query(`
       INSERT INTO analytics (business_id, message_count, session_count)
@@ -591,7 +596,7 @@ app.post('/api/admin/backfill-analytics', requireAdmin, async (_req, res) => {
       GROUP BY business_id
     `);
     const r = await pool.query('SELECT * FROM analytics ORDER BY message_count DESC');
-    await pool.end();
+    /* shared pool, no end */
     res.json({ ok: true, rows: r.rows });
   } catch (e) {
     console.error('[backfill]', e);
@@ -603,13 +608,12 @@ app.post('/api/admin/backfill-analytics', requireAdmin, async (_req, res) => {
 /* --- CLEANUP ORPHAN DATA --- */
 app.post('/api/admin/cleanup-orphans', requireAdmin, async (_req, res) => {
   try {
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 2 });
+    const pool = db.pool;
     const c = await pool.query("DELETE FROM conversations WHERE business_id NOT IN (SELECT id FROM businesses) OR business_id = ''");
     const l = await pool.query("DELETE FROM leads WHERE business_id NOT IN (SELECT id FROM businesses) OR business_id = ''");
     const a = await pool.query("DELETE FROM analytics WHERE business_id NOT IN (SELECT id FROM businesses) OR business_id = ''");
     const k = await pool.query("DELETE FROM kb_sources WHERE business_id NOT IN (SELECT id FROM businesses)");
-    await pool.end();
+    /* shared pool, no end */
     res.json({ ok: true, deleted: { conversations: c.rowCount, leads: l.rowCount, analytics: a.rowCount, kb_sources: k.rowCount } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -810,7 +814,7 @@ app.post('/api/chat', chatRateLimit, async (req, res) => {
 
   let reply = '';
   try {
-    const response = await anthropic.messages.create({
+    const response = await callClaudeWithTimeout({
       model:      'claude-sonnet-4-5-20250929',
       max_tokens: 1024,
       system:     systemPrompt,
