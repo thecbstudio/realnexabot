@@ -130,11 +130,11 @@ function saveConversation(sessionId, businessId, messages) {
   );
 }
 
-function getAllConversationSummaries() {
-  return pool.query(
-    `SELECT session_id, business_id, messages, last_ts, msg_count
-     FROM conversations ORDER BY last_ts DESC LIMIT 500`
-  ).then(r => r.rows.map(row => {
+function getAllConversationSummaries(bizId) {
+  const sql = bizId
+    ? `SELECT session_id, business_id, messages, last_ts, msg_count FROM conversations WHERE business_id = $1 ORDER BY last_ts DESC LIMIT 500`
+    : `SELECT session_id, business_id, messages, last_ts, msg_count FROM conversations ORDER BY last_ts DESC LIMIT 500`;
+  return pool.query(sql, bizId ? [bizId] : []).then(r => r.rows.map(row => {
     const msgs = Array.isArray(row.messages) ? row.messages : [];
     const last = msgs[msgs.length - 1];
     return {
@@ -211,4 +211,4 @@ function getAnalytics() {
     .then(r => r.rows);
 }
 
-module.exports = { init, getBusiness, saveBusiness, deleteBusiness, getAllBusinesses, getConversation, saveConversation, getAllConversationSummaries, pruneOldConversations, saveLead, getAllLeads, updateLead, deleteLead, trackMessage, getAnalytics, logError, getErrors };
+module.exports = { pool, init, getBusiness, saveBusiness, deleteBusiness, getAllBusinesses, getConversation, saveConversation, getAllConversationSummaries, pruneOldConversations, saveLead, getAllLeads, updateLead, deleteLead, trackMessage, getAnalytics, logError, getErrors };
