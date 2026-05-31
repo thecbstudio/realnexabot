@@ -14,8 +14,9 @@ export function Conversations() {
   const [search, setSearch] = useState('')
 
   useEffect(() => {
-    api.listConversations().then(setList)
-  }, [])
+    if (!bizId) return
+    api.listConversations(bizId).then(setList)
+  }, [bizId])
 
   const filtered = list.filter(c => c.businessId === bizId && (!search || (c.lastMessage || '').toLowerCase().includes(search.toLowerCase())))
 
