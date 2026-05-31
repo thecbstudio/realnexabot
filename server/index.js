@@ -708,7 +708,12 @@ app.post('/api/admin/migrate-json', requireAdmin, async (req, res) => {
 app.post('/api/kb/upload-pdf/:businessId', requireAdmin, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file' });
-    const data = await pdfParse(req.file.buffer);
+    if (req.file.size > 10 * 1024 * 1024) return res.status(400).json({ error: 'Max 10MB' });
+    if (!(req.file.buffer.length > 4 && req.file.buffer.slice(0,4).toString('ascii') === '%PDF')) return res.status(400).json({ error: 'Gecerli bir PDF dosyasi degil' });
+    const data = await Promise.race([
+      pdfParse(req.file.buffer),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('PDF parse timeout')), 30000))
+    ]);
     const result = await kb.addSource(req.params.businessId, 'pdf', req.file.originalname, data.text || '');
     res.json({ ok: true, ...result });
   } catch (e) {
