@@ -318,7 +318,7 @@ app.get('/embed/:businessId', async (req, res) => {
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(businessId)) return res.status(400).type('application/javascript').send('/* invalid businessId */');
   const baseUrl = process.env.BASE_URL || `${req.protocol}://${host}`;
   let position = 'right:20px';
-  let color = '#C9A84C';
+  let color = '#2563EB';
   let emoji = '💬';
   try {
     const biz = await db.getBusiness(businessId);
