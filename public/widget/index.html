@@ -5,60 +5,60 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NexaBot</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; }
+:root {
+  --accent: #2563EB;
+  --accent-hover: #1d4ed8;
+  --accent-soft: rgba(37,99,235,0.10);
+  --on-accent: #ffffff;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f3f4f6;
+  --border: #e5e7eb;
+  --ink: #0a0a0a;
+  --muted: #6b7280;
+  --faint: #9ca3af;
+}
 body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--bg, #0d0d0d);
-  color: #f0f0f0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
   display: flex;
   flex-direction: column;
 }
-:root {
-  --bg: #0d0d0d;
-  --gold: #C9A84C;
-  --gold-light: #E8C97A;
-  --gold-dim: rgba(201,168,76,0.12);
-  --surface: #161616;
-  --surface-2: #1e1e1e;
-  --border: #252525;
-  --muted: #555;
-  --dim: #888;
-}
-
-/* HEADER */
 .chat-header {
-  background: var(--surface);
+  background: var(--accent);
   padding: 14px 18px;
   display: flex;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .avatar {
-  width: 38px; height: 38px;
+  width: 40px; height: 40px;
   border-radius: 50%;
-  background: var(--gold-dim);
-  border: 1.5px solid var(--gold);
+  background: rgba(255,255,255,0.18);
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   flex-shrink: 0;
+  overflow: hidden;
 }
 .header-info { flex: 1; min-width: 0; }
 .bot-name {
-  font-family: 'Syne', sans-serif;
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: 0.95rem;
+  color: var(--on-accent);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .bot-status {
   font-size: 0.72rem;
-  color: #2ecc71;
+  color: rgba(255,255,255,0.85);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -66,14 +66,12 @@ body {
 }
 .status-dot {
   width: 6px; height: 6px;
-  background: #2ecc71;
+  background: #4ade80;
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-.powered { font-size: 0.62rem; color: #333; flex-shrink: 0; }
-
-/* MESSAGES */
+.powered { font-size: 0.62rem; color: rgba(255,255,255,0.6); flex-shrink: 0; }
 .messages {
   flex: 1;
   overflow-y: auto;
@@ -82,41 +80,39 @@ body {
   flex-direction: column;
   gap: 10px;
   scroll-behavior: smooth;
+  background: var(--bg);
 }
-.messages::-webkit-scrollbar { width: 2px; }
-.messages::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
-
+.messages::-webkit-scrollbar { width: 5px; }
+.messages::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 5px; }
 .msg { display: flex; flex-direction: column; max-width: 88%; }
 .msg.bot { align-self: flex-start; }
 .msg.user { align-self: flex-end; }
 .bubble {
   padding: 10px 14px;
-  border-radius: 12px;
-  font-size: 0.875rem;
-  line-height: 1.65;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
 }
 .msg.bot .bubble {
   background: var(--surface-2);
-  border-bottom-left-radius: 3px;
-  border: 1px solid var(--border);
+  color: var(--ink);
+  border-bottom-left-radius: 4px;
 }
 .msg.user .bubble {
-  background: var(--gold);
-  color: #000;
+  background: var(--accent);
+  color: var(--on-accent);
   font-weight: 500;
-  border-bottom-right-radius: 3px;
+  border-bottom-right-radius: 4px;
 }
 .msg-time {
   font-size: 0.65rem;
-  color: var(--muted);
-  margin-top: 3px;
-  padding: 0 2px;
+  color: var(--faint);
+  margin-top: 4px;
+  padding: 0 4px;
 }
 .msg.user .msg-time { text-align: right; }
-
-/* TYPING */
 .typing-wrap { align-self: flex-start; }
 .typing {
   display: flex;
@@ -124,44 +120,41 @@ body {
   align-items: center;
   padding: 12px 16px;
   background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  border-bottom-left-radius: 3px;
+  border-radius: 14px;
+  border-bottom-left-radius: 4px;
   width: fit-content;
 }
 .dot {
-  width: 5px; height: 5px;
-  background: #444;
+  width: 6px; height: 6px;
+  background: var(--faint);
   border-radius: 50%;
   animation: bounce 1.3s infinite;
 }
 .dot:nth-child(2) { animation-delay: .18s; }
 .dot:nth-child(3) { animation-delay: .36s; }
 @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
-
-/* QUICK REPLIES */
 .quick-replies {
   padding: 4px 14px 8px;
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
   flex-shrink: 0;
+  background: var(--bg);
 }
 .qr-btn {
-  background: transparent;
+  background: var(--surface);
   border: 1px solid var(--border);
-  color: var(--dim);
-  padding: 6px 13px;
+  color: var(--accent);
+  padding: 7px 14px;
   border-radius: 100px;
-  font-size: 0.77rem;
+  font-size: 0.8rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all .18s;
   white-space: nowrap;
-  font-family: 'DM Sans', sans-serif;
+  font-family: inherit;
 }
-.qr-btn:hover { border-color: var(--gold); color: var(--gold); }
-
-/* INPUT */
+.qr-btn:hover { background: var(--accent-soft); border-color: var(--accent); }
 .input-area {
   padding: 10px 12px 12px;
   border-top: 1px solid var(--border);
@@ -172,48 +165,47 @@ body {
 }
 .chat-input {
   flex: 1;
-  background: var(--surface-2);
+  background: var(--bg);
   border: 1px solid var(--border);
-  color: #f0f0f0;
+  color: var(--ink);
   padding: 10px 14px;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-family: 'DM Sans', sans-serif;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-family: inherit;
   outline: none;
   transition: border-color .2s;
   resize: none;
   max-height: 80px;
-  min-height: 40px;
+  min-height: 42px;
   line-height: 1.4;
 }
-.chat-input:focus { border-color: var(--gold); }
-.chat-input::placeholder { color: #3a3a3a; }
+.chat-input:focus { border-color: var(--accent); }
+.chat-input::placeholder { color: var(--faint); }
 .send-btn {
-  background: var(--gold);
-  color: #000;
+  background: var(--accent);
+  color: var(--on-accent);
   border: none;
-  width: 40px; height: 40px;
-  border-radius: 8px;
+  width: 42px; height: 42px;
+  border-radius: 10px;
   cursor: pointer;
   transition: background .2s, transform .1s;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   align-self: flex-end;
 }
-.send-btn:hover { background: var(--gold-light); transform: scale(1.04); }
-.send-btn:disabled { opacity: .35; cursor: not-allowed; transform: none; }
-
-.citations{font-size:11px;color:#C9A84C;opacity:.8;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
-.citations .src{background:rgba(201,168,76,.1);padding:2px 8px;border-radius:8px;border:1px solid rgba(201,168,76,.3);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.send-btn:hover { background: var(--accent-hover); transform: scale(1.04); }
+.send-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.citations{font-size:11px;color:var(--muted);margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.citations .src{background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:8px;border:1px solid var(--border);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 </head>
 <body>
 
 <div class="chat-header">
-  <div class="avatar" id="botAvatar">🤖</div>
+  <div class="avatar" id="botAvatar">&#129302;</div>
   <div class="header-info">
     <div class="bot-name" id="botName">NexaBot</div>
-    <div class="bot-status"><span class="status-dot"></span>Online</div>
+    <div class="bot-status"><span class="status-dot"></span>&#199;evrimi&#231;i</div>
   </div>
   <div class="powered">NexaBot</div>
 </div>
@@ -222,7 +214,7 @@ body {
 <div class="quick-replies" id="quickReplies"></div>
 
 <div class="input-area">
-  <textarea class="chat-input" id="chatInput" rows="1" placeholder="Write a message..."></textarea>
+  <textarea class="chat-input" id="chatInput" rows="1" placeholder="Mesaj yaz..."></textarea>
   <button class="send-btn" id="sendBtn">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -233,11 +225,20 @@ body {
 
 <script>
 const businessId = window.location.pathname.split('/').filter(Boolean).pop();
-// Her sayfa yüklenişinde yeni session başlat — her zaman güncel prompt kullanılsın
 localStorage.removeItem('nxbt_sid_' + businessId);
 let sessionId = null;
 let isTyping  = false;
 let business  = null;
+
+function contrastOn(hex) {
+  try {
+    let h = hex.replace('#','');
+    if (h.length === 3) h = h.split('').map(x => x+x).join('');
+    const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+    const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+    return lum > 0.6 ? '#0a0a0a' : '#ffffff';
+  } catch { return '#ffffff'; }
+}
 
 async function loadBusiness() {
   if (!businessId || businessId === 'undefined') { initChat(); return; }
@@ -245,25 +246,29 @@ async function loadBusiness() {
     const r = await fetch('/api/business/' + businessId);
     if (r.ok) {
       business = await r.json();
-      document.getElementById('botName').textContent   = business.bot_name || business.name || 'NexaBot';
+      document.getElementById('botName').textContent = business.bot_name || business.name || 'NexaBot';
       const avEl = document.getElementById('botAvatar');
       if (business.avatar_url) {
-        avEl.innerHTML = `<img src="${business.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`;
+        avEl.innerHTML = '<img src="' + business.avatar_url + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
         avEl.style.background = 'transparent';
-        avEl.style.padding = '0';
       } else {
-        avEl.textContent = business.emoji || '🤖';
+        avEl.textContent = business.emoji || '\u{1F916}';
       }
-      if (business.widget_color) document.documentElement.style.setProperty('--gold', business.widget_color);
-      if (business.widget_bg) document.documentElement.style.setProperty('--bg', business.widget_bg);
+      const root = document.documentElement.style;
+      if (business.widget_color) {
+        root.setProperty('--accent', business.widget_color);
+        root.setProperty('--accent-soft', business.widget_color + '1A');
+        root.setProperty('--on-accent', contrastOn(business.widget_color));
+      }
+      if (business.widget_bg) root.setProperty('--bg', business.widget_bg);
     }
   } catch(e) {}
   initChat();
 }
 
 function initChat() {
-  appendMessage('bot', business?.greeting || '👋');
-  showQuickReplies(business?.quick_replies || ['Hello!', 'Merhaba!', 'Hola!', 'Bonjour!']);
+  appendMessage('bot', business?.greeting || '\u{1F44B} Merhaba! Size nasıl yardımcı olabilirim?');
+  showQuickReplies(business?.quick_replies || []);
 }
 
 function esc(s) {
@@ -281,13 +286,13 @@ function appendMessage(role, text, citations) {
   if (citations && citations.length) {
     const items = citations.map(s => {
       const isUrl = /^https?:\/\//.test(s);
-      const icon = isUrl ? '🌐' : (s.toLowerCase().endsWith('.pdf') ? '📄' : '📝');
+      const icon = isUrl ? '\u{1F310}' : (s.toLowerCase().endsWith('.pdf') ? '\u{1F4C4}' : '\u{1F4DD}');
       const label = isUrl ? new URL(s).hostname : s;
-      return `<span class="src">${icon} ${esc(label)}</span>`;
+      return '<span class="src">' + icon + ' ' + esc(label) + '</span>';
     }).join('');
-    citeHtml = `<div class="citations">${items}</div>`;
+    citeHtml = '<div class="citations">' + items + '</div>';
   }
-  div.innerHTML = `<div class="bubble">${formatted}</div>${citeHtml}<div class="msg-time">${now}</div>`;
+  div.innerHTML = '<div class="bubble">' + formatted + '</div>' + citeHtml + '<div class="msg-time">' + now + '</div>';
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
 }
@@ -330,7 +335,6 @@ async function sendText(text) {
     const r = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // Dil yok — backend Claude'a "kullanıcının dilinde cevap ver" diyecek
       body: JSON.stringify({ businessId, sessionId, message: text })
     });
     const data = await r.json();
@@ -341,7 +345,7 @@ async function sendText(text) {
     if (data.quickReplies && data.quickReplies.length) showQuickReplies(data.quickReplies);
   } catch(e) {
     removeTyping();
-    appendMessage('bot', '⚠️ Connection error. Please try again.');
+    appendMessage('bot', '⚠️ Bağlantı hatası. Lütfen tekrar deneyin.');
   }
 
   isTyping = false;
